@@ -1,0 +1,31 @@
+# The version of this inputs file. Do not modify.
+version: build-docker-image-inputs-v1
+
+#
+# Parameters that must be changed from these values!
+#
+
+# You have to create ACR before running the script.
+azureACRServer: acrwlsonaks0303.azurecr.io
+
+# The service principal is used to login to azure and create an azure kubernetes cluster.
+# If you don't have a service principal, please follow README.md
+# Application id of the service principal.
+azureACRUserName: acrwlsonaks0303
+
+# A client secret of the service principal.
+azureACRPassword: 11111111111111111
+
+# Version of new image
+imageVersion: 1.0.12
+
+# Oracle Single Sign-On (SSO) account email, used to pull the WebLogic Server image.
+dockerEmail: haixia.cheng@microsoft.com
+
+# Oracle SSO account password, used to pull the WebLogic Server image.
+dockerPassword: 1111111111
+
+# The same value as dockerEmail.
+dockerUserName: haixia.cheng@microsoft.com
+
+modelFolderName: model-in-image__WLS-v1
