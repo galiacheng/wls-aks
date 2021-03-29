@@ -1,0 +1,22 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    app.kubernetes.io/component: prometheus
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/part-of: kube-prometheus
+    app.kubernetes.io/version: 2.25.0
+    prometheus: k8s
+    role: alert-rules
+  name: wls-sample-domain1-prometheus-rules
+  namespace: monitoring
+spec:
+  groups:
+  - name: wls-sample-domain1
+    rules:
+    - alert: scaleup
+      for: 1m
+      expr: avg(webapp_config_open_sessions_current_count{webapp="myapp2"}) > 10
+      annotations:
+        description: 'Scale up when current sessions is greater than 15.'
+        summary: 'Firing when total sessions active greater than 15.'

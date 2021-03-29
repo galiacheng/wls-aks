@@ -136,14 +136,3 @@ spec:
       for: 5m
       labels:
         severity: critical
-  - name: node.rules
-    rules:
-    - alert: ClusterWarning
-      for: 1m
-      expr: sum by(weblogic_domainUID, weblogic_clusterName) (up{weblogic_domainUID=~'.+'}) == 1
-      labels:
-        severity: page
-      annotations:
-        description: 'Some WLS cluster has only one running server for more than 1 minutes.'
-        summary: 'Some wls cluster is in warning state.'
-    

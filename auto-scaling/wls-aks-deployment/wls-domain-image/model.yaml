@@ -29,11 +29,11 @@ topology:
 appDeployments:
     Application:
         myapp2:
-            SourcePath: 'wls-deploy/applications/testwebapp.war'
+            SourcePath: 'wlsdeploy/applications/testwebapp.war'
             ModuleType: war
             Target: 'cluster-1'
         myapp1:
-            SourcePath: 'wls-deploy/applications/wls-exporter.war'
+            SourcePath: 'wlsdeploy/applications/wls-exporter.war'
             ModuleType: war
             Target: 'cluster-1'
 

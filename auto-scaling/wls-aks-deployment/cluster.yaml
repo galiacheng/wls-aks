@@ -20,7 +20,7 @@ spec:
   domainHome: /u01/domains/sample-domain1
 
   # The WebLogic Server Docker image that the Operator uses to start the domain
-  image: "acrwlsonaks0303.azurecr.io/aks-wls-images:model-in-image-v1.0.12"
+  image: "acrwlsonaks0303.azurecr.io/aks-wls-images:model-in-image-v1.0.13"
 
   # Defaults to "Always" if image tag (version) is ':latest'
   imagePullPolicy: "IfNotPresent"
@@ -62,8 +62,8 @@ spec:
       value: "-Dweblogic.StdoutDebugEnabled=false"
     - name: USER_MEM_ARGS
       value: "-Djava.security.egd=file:/dev/./urandom -Xms256m -Xmx512m "
-    - name: POST_CLASSPATH
-      value: "/u01/oracle/wlserver/server/lib/postgresql-42.2.8.jar"
+    # - name: POST_CLASSPATH
+    #  value: "/u01/oracle/wlserver/server/lib/postgresql-42.2.8.jar"
     resources:
       requests:
         cpu: "250m"
