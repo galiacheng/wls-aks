@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: webhook
+  namespace: monitoring
+spec:
+  selector:
+    name: webhook
+  type: ClusterIP
+  ports:
+  - port: 9000

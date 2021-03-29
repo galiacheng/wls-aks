@@ -1,0 +1,16 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: alertmanager-svc
+  namespace: monitoring
+spec:
+  type: NodePort
+  ports:
+    - port: 9093
+      nodePort: 31100
+  selector:
+    alertmanager: main
+    app: alertmanager
+    app.kubernetes.io/component: alert-router
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/part-of: kube-prometheus

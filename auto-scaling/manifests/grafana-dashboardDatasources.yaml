@@ -1,0 +1,13 @@
+apiVersion: v1
+data:
+  datasources.yaml: ewogICAgImFwaVZlcnNpb24iOiAxLAogICAgImRhdGFzb3VyY2VzIjogWwogICAgICAgIHsKICAgICAgICAgICAgImFjY2VzcyI6ICJwcm94eSIsCiAgICAgICAgICAgICJlZGl0YWJsZSI6IHRydWUsCiAgICAgICAgICAgICJuYW1lIjogIlByb21ldGhldXMiLAogICAgICAgICAgICAib3JnSWQiOiAxLAogICAgICAgICAgICAidHlwZSI6ICJwcm9tZXRoZXVzIiwKICAgICAgICAgICAgInVybCI6ICJodHRwOi8vcHJvbWV0aGV1cy1rOHMubW9uaXRvcmluZy5zdmM6OTA5MCIsCiAgICAgICAgICAgICJ2ZXJzaW9uIjogMQogICAgICAgIH0KICAgIF0KfQ==
+kind: Secret
+metadata:
+  labels:
+    app.kubernetes.io/component: grafana
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/part-of: kube-prometheus
+    app.kubernetes.io/version: 7.4.3
+  name: grafana-datasources
+  namespace: monitoring
+type: Opaque

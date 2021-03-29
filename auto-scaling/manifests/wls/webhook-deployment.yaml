@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    name: webhook
+  name: webhook
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: webhook
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        name: webhook
+    spec:
+      containers:
+        - image: acrwlsonaks0303.azurecr.io/webhook:1.0
+          imagePullPolicy: IfNotPresent
+          name: webhook
+          env:
+            - name: INTERNAL_OPERATOR_CERT
+              value: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUQ1VENDQXMyZ0F3SUJBZ0lKQU83Q1N0Q1M1NVJkTUEwR0NTcUdTSWIzRFFFQkN3VUFNQnd4R2pBWUJnTlYNCkJBTVRFWGRsWW14dloybGpMVzl3WlhKaGRHOXlNQjRYRFRJeE1ETXdNekE1TVRVME0xb1hEVE14TURNd01UQTUNCk1UVTBNMW93SERFYU1CZ0dBMVVFQXhNUmQyVmliRzluYVdNdGIzQmxjbUYwYjNJd2dnRWlNQTBHQ1NxR1NJYjMNCkRRRUJBUVVBQTRJQkR3QXdnZ0VLQW9JQkFRQ1lqakdKL3I5Zno2dHorR0tLbG5lMkYySUQ3OE9WQUpaZTFrV3ANCkt3SmFETE14VVBraE95SE1NalFnTmtUait3S081YWYwV0EwcGVNKzRTdUgyMVJYMWdYVENFazVHdmJueVlaenkNCnJSdVQvVDNJYkNNY0l2RGplRjluT01yTXlMOHJuQkhlRUE5YzZ5RC9OamkzdjBZNWU2aWplWm8yRGlUOEpmaDMNCk1UL1BKSHlpcHdIejYzK1V1djVGUWFDYi9uWGxyT2hia04zYnc5djNOVFM5cmlWR1RjMFBWMExHUERaWEVKWkENCmZ1RlFkN25oZ2J4SGhmcTlhdmhQL0M5Y21kc1dEc0hhY25kN0d5bEdnSVdScTUrbmlaNUpWblZXYnVpenhDU20NCjNvOWJtN3BiUmszVW1adVlnOTE1MDFNQytaTmorVHBwTkZjaDV1ZHdlblA5anFqN0FnTUJBQUdqZ2dFb01JSUINCkpEQWRCZ05WSFE0RUZnUVVZQzU4enlEOHpCbmRBUDRPZEpYMUxPTlZwVWN3Q3dZRFZSMFBCQVFEQWdQNE1JSDENCkJnTlZIUkVFZ2Uwd2dlcUNIbWx1ZEdWeWJtRnNMWGRsWW14dloybGpMVzl3WlhKaGRHOXlMWE4yWTRJNmFXNTANClpYSnVZV3d0ZDJWaWJHOW5hV010YjNCbGNtRjBiM0l0YzNaakxuTmhiWEJzWlMxM1pXSnNiMmRwWXkxdmNHVnkNCllYUnZjaTF1YzRJK2FXNTBaWEp1WVd3dGQyVmliRzluYVdNdGIzQmxjbUYwYjNJdGMzWmpMbk5oYlhCc1pTMTMNClpXSnNiMmRwWXkxdmNHVnlZWFJ2Y2kxdWN5NXpkbU9DVEdsdWRHVnlibUZzTFhkbFlteHZaMmxqTFc5d1pYSmgNCmRHOXlMWE4yWXk1ellXMXdiR1V0ZDJWaWJHOW5hV010YjNCbGNtRjBiM0l0Ym5NdWMzWmpMbU5zZFhOMFpYSXUNCmJHOWpZV3d3RFFZSktvWklodmNOQVFFTEJRQURnZ0VCQUNYYnoyaWVuRklvRDNOZmR5NlNOM004UTc2dmxOdDENCms5ckp3ckJHWE4rWmFXVDJDSWkvTkNWN1hudG5rS1d5TlA5eW50NG95Mk56U1dacCtSWEQvRXpTZVhhdFlDenENCnZLRWRjRkI5VVBmUkdnSmNrNzlOVVhvTXEwT3ZNbDhKeHJWOFhIQm5qM0QrOFNvNTY5MmkyRkFBd3NUZlFtUVgNCmp1RDRyZUljM05YdnJWb2VTUHluZEpqOXl5NUhkYlZvRkhlVUNpUlBYdytLOXczcE4yMDVOQTQ0OWcrWE85emENCnZBakg5aWFnR3J5UWE3MlBVa09XMVR2SDM2RzRBS05QWCtGd0FSanU0a21aeGJ4akNHYzJSS2ZzejdOSklHbWMNClBtaWhrYUxqOUdBUGFic3hJRUdVZEcxUmhVQkNjNGlJT2Q3NWdyN2pkSHBXNU1UdENYNytJMmc9Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+          ports:
+            - containerPort: 9000
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 500m
+              memory: 2500Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
+      imagePullSecrets:
+        - name: regsecret
+      restartPolicy: Always
+      serviceAccountName: webhook
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
