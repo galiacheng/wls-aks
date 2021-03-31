@@ -17,13 +17,13 @@ spec:
     - record: webapp:webapp_config_open_sessions_current_count:avg
       expr: avg(webapp_config_open_sessions_current_count{webapp="myapp2"})
     - alert: scaleup
-      for: 5m
+      for: 1m
       expr: webapp:webapp_config_open_sessions_current_count:avg > 10
       annotations:
         description: 'Scale up when current sessions is greater than 15.'
         summary: 'Firing when total sessions active greater than 15.'
     - alert: scaledown
-      for: 5m
+      for: 1m
       expr: webapp:webapp_config_open_sessions_current_count:avg < 4
       annotations:
         description: 'Scale down when current sessions is less than 4.'

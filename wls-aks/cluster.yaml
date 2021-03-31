@@ -20,7 +20,7 @@ spec:
   domainHome: /u01/domains/sample-domain1
 
   # The WebLogic Server Docker image that the Operator uses to start the domain
-  image: "acrwlsonaks0303.azurecr.io/aks-wls-images:model-in-image-v1.0.13"
+  image: "acrwlsonaks0303.azurecr.io/aks-wls-images:model-in-image-v1.0.16"
 
   # Defaults to "Always" if image tag (version) is ':latest'
   imagePullPolicy: "IfNotPresent"

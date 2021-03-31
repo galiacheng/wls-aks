@@ -66,12 +66,9 @@ kubectl create secret docker-registry regsecret \
 
 kubectl apply -f cluster.yaml
 
-kubectl -n sample-domain1-ns patch domain sample-domain1 --type=json '-p=[{"op": "replace", "path": "/spec/restartVersion", "value": "2" }]'
-
 # kubectl get pods -n sample-domain1-ns --watch
 
 echo "Create LB for testing"
 
 kubectl apply -f admin-lb.yaml
-kubectl apply -f cluster-lb-8006.yaml
-kubectl apply -f cluster-lb-8011.yaml
+kubectl apply -f cluster-lb.yaml

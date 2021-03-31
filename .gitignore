@@ -1,2 +1,5 @@
 auto-scaling/wls-aks-deployment/my-create-aks-wls.sh
 auto-scaling/wls-aks-deployment/wls-domain-image/my-build-docker-image-inputs.yaml
+wls-aks/wls-domain-image/my-build-docker-image-inputs.yaml
+wls-aks/my-create-aks-wls.sh
+auto-scaling/demo/curl-app-17times.sh
