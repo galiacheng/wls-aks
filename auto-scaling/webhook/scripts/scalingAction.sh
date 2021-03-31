@@ -202,6 +202,11 @@ fi
 
 echo "new_ms is $new_ms" >> scalingAction.log
 
+if [ $new_ms -lt 1 ];then
+    new_ms=1
+    echo "to keep at least one pod running, new_ms is $new_ms" >> scalingAction.log
+fi
+
 request_body=$(cat <<EOF
 {
     "managedServerCount": $new_ms 

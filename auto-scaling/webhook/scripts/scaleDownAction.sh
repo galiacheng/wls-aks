@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo scale up action >> scaleup.log
+echo scale down action >> scaledown.log
 
 MASTER=https://haicheakscnipublic-dns-069d2dd0.hcp.southeastasia.azmk8s.io:443
 
