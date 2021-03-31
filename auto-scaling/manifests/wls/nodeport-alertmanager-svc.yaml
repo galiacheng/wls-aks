@@ -1,6 +1,10 @@
 kind: Service
 apiVersion: v1
 metadata:
+  labels:
+      app.kubernetes.io/component: alertmanager
+      app.kubernetes.io/name: alertmanager
+      app.kubernetes.io/part-of: kube-prometheus
   name: alertmanager-svc
   namespace: monitoring
 spec:
