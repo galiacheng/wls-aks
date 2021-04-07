@@ -159,7 +159,7 @@ grafana-external-lb          LoadBalancer   10.0.95.146    20.197.101.160   3000
 prometheus-k8s-external-lb   LoadBalancer   10.0.4.89      20.197.101.235   9090:31360/TCP               115m
 ```
 
-You can access Grafana with public IP of `grafana-external-lb`, http://<grafana-public-ip>:3000, use user `admin` and password `admin`. You have to update the password for the first login.
+You can access Grafana with public IP of `grafana-external-lb`, `http://<grafana-public-ip>:3000`, use user `admin` and password `admin`. You have to update the password for the first login.
 
 Click **Dashboards** -> **Manage** -> **WebLogic** -> **WebLogic Dashboard**, you will see the WLS metrics.
 
