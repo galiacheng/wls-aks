@@ -1,3 +1,4 @@
+# kubectl create secret generic additional-scrape-configs --from-file=prometheus-additional.yaml -n monitoring
 - job_name: 'wls-domain1'
   kubernetes_sd_configs:
   - role: pod

@@ -26,6 +26,10 @@ Following the guide you can customize your scaling flows.
 
 - Follow [this document](wls-aks/README.md) to create one.
 
+##### Webhook
+
+- [webhook](https://github.com/adnanh/webhook/)
+
 #### Build webhook image and push to ACR
 
 Firstly, you need to login docker.io with 
