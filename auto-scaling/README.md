@@ -154,21 +154,9 @@ $ kubectl create -f manifests/wls-aks
 Get public IP of Grafana using:
 
 ```bash
-$ kubectl get svc -n monitoring
-alertmanager-main            ClusterIP      10.0.238.88    <none>           9093/TCP                     25m
-alertmanager-operated        ClusterIP      None           <none>           9093/TCP,9094/TCP,9094/UDP   25m
-blackbox-exporter            ClusterIP      10.0.107.145   <none>           9115/TCP,19115/TCP           25m
-grafana                      NodePort       10.0.230.78    <none>           3000:31683/TCP               31s
-grafana-external-lb          LoadBalancer   10.0.95.146    20.197.101.160   3000:32280/TCP               24m
-kube-state-metrics           ClusterIP      None           <none>           8443/TCP,9443/TCP            25m
-node-exporter                ClusterIP      None           <none>           9100/TCP                     25m
-prometheus-adapter           ClusterIP      10.0.3.154     <none>           443/TCP                      25m
-prometheus-k8s               ClusterIP      10.0.207.162   <none>           9090/TCP                     25m
-prometheus-k8s-external-lb   LoadBalancer   10.0.4.89      20.197.101.235   9090:31360/TCP               24m
-prometheus-operated          ClusterIP      None           <none>           9090/TCP                     24m
-prometheus-operator          ClusterIP      None           <none>           8443/TCP                     26m
-webhook                      ClusterIP      10.0.249.53    <none>           9000/TCP                     24m
-grafana                      NodePort       10.0.230.78    <none>           3000:31683/TCP               4m30s
+$ kubectl get svc -n monitoring | grep "lb"
+grafana-external-lb          LoadBalancer   10.0.95.146    20.197.101.160   3000:32280/TCP               115m
+prometheus-k8s-external-lb   LoadBalancer   10.0.4.89      20.197.101.235   9090:31360/TCP               115m
 ```
 
 You can access Grafana with public IP of `grafana-external-lb`, http://<grafana-public-ip>:3000, use user `admin` and password `admin`. You have to update the password for the first login.
