@@ -101,7 +101,7 @@ $ kubectl create -f manifests/
 
 Update the following fields in `webhook-deployment.yaml`. 
 
-|| Name in YAML file | Example value | Notes |
+| Name in YAML file | Example value | Notes |
 |-------------------|---------------|-------|
 | `spec.template.spec.containers.image` | `acrwlsonaks0303.azurecr.io/webhook:1.6` | Must be the same with `<acr-login-server>/webhook:1.0` |
 | `spec.template.spec.containers.env.<INTERNAL_OPERATOR_CERT>.value` | `LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tL` | Must be the same value of `internalOperatorCert` from output of `kubectl describe configmap weblogic-operator-cm -n sample-weblogic-operator-ns` |
