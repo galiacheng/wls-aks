@@ -32,7 +32,23 @@ Following the guide you can customize your scaling flows.
 
 #### Build webhook image and push to ACR
 
-Firstly, you need to login docker.io with 
+Update AKS master address `MASTER` in `scaleDownAction.sh` and `scaleUpAction.sh` with your AKS master address.
+
+To get the AKS master address, use the following command, you will find text like "Kubernetes master is running at". 
+
+Update the address to scaling action scripts. 
+
+```bash
+$ kubectl cluster-info
+Kubernetes master is running at https://haicheakscnipublic-dns-069d2dd0.hcp.southeastasia.azmk8s.io:443
+addon-http-application-routing-default-http-backend is running at https://haicheakscnipublic-dns-069d2dd0.hcp.southeastasia.azmk8s.io:443/api/v1/namespaces/kube-system/services/addon-http-application-routing-default-http-backend/proxy
+addon-http-application-routing-nginx-ingress is running at http://20.43.183.246:80 http://20.43.183.246:443
+healthmodel-replicaset-service is running at https://haicheakscnipublic-dns-069d2dd0.hcp.southeastasia.azmk8s.io:443/api/v1/namespaces/kube-system/services/healthmodel-replicaset-service/proxy
+CoreDNS is running at https://haicheakscnipublic-dns-069d2dd0.hcp.southeastasia.azmk8s.io:443/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
+Metrics-server is running at https://haicheakscnipublic-dns-069d2dd0.hcp.southeastasia.azmk8s.io:443/api/v1/namespaces/kube-system/services/https:metrics-server:/proxy
+```
+
+Login docker.io with 
 
 `docker login docker.io -u <your-docker-user-id> -p <your-docker-password>`
 
@@ -81,6 +97,15 @@ $ kubectl create -f manifests/
 
 #### Deploy WLS rules and webhook
 
+1. Update webhook configuration
+
+Update the following fields in `webhook-deployment.yaml`. 
+
+|| Name in YAML file | Example value | Notes |
+|-------------------|---------------|-------|
+| `spec.template.spec.containers.image` | `acrwlsonaks0303.azurecr.io/webhook:1.6` | Must be the same with `<acr-login-server>/webhook:1.0` |
+| `spec.template.spec.containers.env.<INTERNAL_OPERATOR_CERT>.value` | `LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tL` | Must be the same value of `internalOperatorCert` from output of `kubectl describe configmap weblogic-operator-cm -n sample-weblogic-operator-ns` |
+
 ```bash
 $ export LOGIN_SERVER=acrwlsonaks0303.azurecr.io
 $ export USER_NAME=acrwlsonaks0303
@@ -93,5 +118,63 @@ $ kubectl create secret docker-registry regsecret \
 
 $ kubectl create -f manifests/wls-aks
 ```
+2. Edit `auto-scaling/manifests/wls-aks/weblogic-prometheusRule.yaml` to customize prometheus rule.
+
+3. Edit `auto-scaling/manifests/wls/prometheus-additional.yaml` to customize prometheus additional scrape configs.
+    
+   If you update the additinal scrape config, you also need to update `auto-scaling/manifests/wls-aks/prometheus-additional-scrape-configs.yaml` using the following command
+
+   ```bash
+   $ cd auto-scaling/manifests/wls
+   $ kubectl create secret generic additional-scrape-configs --from-file=prometheus-additional.yaml --dry-run=client -oyaml > ../wls-aks/prometheus-additional-scrape-configs.yaml
+   ```
+
+   And make sure the labels of the secret looks like, do not change the name and namespace, they are referred in `auto-scaling/manifests/prometheus-prometheus.yaml`:
+
+   ```yaml
+   apiVersion: v1
+   data:
+   prometheus-additional.yaml: LSBqb2Jf...GNvbWUx
+   kind: Secret
+   metadata:
+   labels:
+      app.kubernetes.io/component: prometheus
+      app.kubernetes.io/name: prometheus
+      app.kubernetes.io/part-of: kube-prometheus
+      app.kubernetes.io/version: 2.25.0
+   name: additional-scrape-configs
+   namespace: monitoring
+   ```
+4. Edit `auto-scaling/manifests/alertmanager-secret.yaml` to customize Alert Manager receivers with webhook address.
+
+5. Edit `auto-scaling/manifests/wls-aks/grafana-weblogic-dashboardDefinitions.yaml` to customize Grafana dashboard.
+
+#### Verify 
+
+Get public IP of Grafana using:
+
+```bash
+$ kubectl get svc -n monitoring
+alertmanager-main            ClusterIP      10.0.238.88    <none>           9093/TCP                     25m
+alertmanager-operated        ClusterIP      None           <none>           9093/TCP,9094/TCP,9094/UDP   25m
+blackbox-exporter            ClusterIP      10.0.107.145   <none>           9115/TCP,19115/TCP           25m
+grafana                      NodePort       10.0.230.78    <none>           3000:31683/TCP               31s
+grafana-external-lb          LoadBalancer   10.0.95.146    20.197.101.160   3000:32280/TCP               24m
+kube-state-metrics           ClusterIP      None           <none>           8443/TCP,9443/TCP            25m
+node-exporter                ClusterIP      None           <none>           9100/TCP                     25m
+prometheus-adapter           ClusterIP      10.0.3.154     <none>           443/TCP                      25m
+prometheus-k8s               ClusterIP      10.0.207.162   <none>           9090/TCP                     25m
+prometheus-k8s-external-lb   LoadBalancer   10.0.4.89      20.197.101.235   9090:31360/TCP               24m
+prometheus-operated          ClusterIP      None           <none>           9090/TCP                     24m
+prometheus-operator          ClusterIP      None           <none>           8443/TCP                     26m
+webhook                      ClusterIP      10.0.249.53    <none>           9000/TCP                     24m
+grafana                      NodePort       10.0.230.78    <none>           3000:31683/TCP               4m30s
+```
+
+You can access Grafana with public IP of `grafana-external-lb`, http://<grafana-public-ip>:3000, use user `admin` and password `admin`. You have to update the password for the first login.
+
+Click **Dashboards** -> **Manage** -> **WebLogic** -> **WebLogic Dashboard**, you will see the WLS metrics.
+
+
 
 
