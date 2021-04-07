@@ -17,7 +17,7 @@ azureACRUserName: acrwlsonaks0303
 azureACRPassword: 11111111111111111
 
 # Version of new image
-imageVersion: 1.0.12
+imageVersion: 1.0.0
 
 # Oracle Single Sign-On (SSO) account email, used to pull the WebLogic Server image.
 dockerEmail: haixia.cheng@microsoft.com
@@ -27,5 +27,3 @@ dockerPassword: 1111111111
 
 # The same value as dockerEmail.
 dockerUserName: haixia.cheng@microsoft.com
-
-modelFolderName: model-in-image__WLS-v1
