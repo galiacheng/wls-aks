@@ -98,7 +98,7 @@ kubectl create secret docker-registry regsecret \
 clusterInput=${wlsaksDir}/cluster.yaml
 myClusterInput=${wlsaksDir}/my-cluster.yaml
 cp ${clusterInput} ${myClusterInput}
-sed -i -e "s;^image\:.*;image\: \"${imagePath}\";g" ${myClusterInput}
+sed -i -e "s:#IMAGE_PATH#:${imagePath}:g" ${myClusterInput}
 kubectl apply -f ${myClusterInput}
 
 echo "Create LB for testing"

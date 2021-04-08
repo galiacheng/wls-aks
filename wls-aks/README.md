@@ -28,9 +28,28 @@ Before running the script, please replace the following value with yours.
 
 ```bash
 # Set Java Home
-export JAVA_HOME=/usr/lib/jvm/jdk1.8.0_261
-cd wls-aks
-./create-wls-domain-on-aks.sh
+$ export JAVA_HOME=/usr/lib/jvm/jdk1.8.0_261
+$ cd wls-aks
+$ ./create-wls-domain-on-aks.sh
 ```
 
-Press `ctrl` + `c` to stop the script once the weblogic servers are up.
+Stop the script pressing `ctrl` + `c` when you find output like:
+
+```text
+NAME                                READY   STATUS              RESTARTS   AGE
+sample-domain1-introspector-xftm9   0/1     ContainerCreating   0          5s
+sample-domain1-introspector-xftm9   1/1     Running             0          31s
+sample-domain1-introspector-xftm9   0/1     Completed           0          99s
+sample-domain1-introspector-xftm9   0/1     Terminating         0          99s
+sample-domain1-introspector-xftm9   0/1     Terminating         0          99s
+sample-domain1-admin-server         0/1     Pending             0          0s
+sample-domain1-admin-server         0/1     Pending             0          0s
+sample-domain1-admin-server         0/1     ContainerCreating   0          0s
+sample-domain1-admin-server         0/1     Running             0          2s
+sample-domain1-admin-server         1/1     Running             0          35s
+sample-domain1-managed-server1      0/1     Pending             0          0s
+sample-domain1-managed-server1      0/1     Pending             0          0s
+sample-domain1-managed-server1      0/1     ContainerCreating   0          0s
+sample-domain1-managed-server1      0/1     Running             0          3s
+sample-domain1-managed-server1      1/1     Running             0          48s
+```

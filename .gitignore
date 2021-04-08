@@ -4,3 +4,4 @@ wls-aks/wls-domain-image/my-build-docker-image-inputs.yaml
 wls-aks/my-create-aks-wls.sh
 auto-scaling/demo/curl-app-17times.sh
 auto-scaling/manifests/azure-container-insight/*.*
+wls-aks/my-cluster.yaml
