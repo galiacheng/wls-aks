@@ -11,8 +11,8 @@ Use script `create-wls-domain-on-aks.sh` to create sample domain.
 1. Clone the WebLogic Operator.
 
 ```bash
-cd ~
-git clone https://github.com/oracle/weblogic-kubernetes-operator.git
+$ cd ~
+$ git clone https://github.com/oracle/weblogic-kubernetes-operator.git
 ```
 
 Before running the script, please replace the following value with yours.
