@@ -19,7 +19,7 @@ wlsaksDir="$( cd "$( dirname "${script}" )" && pwd )"
 az group create --name $AKS_PERS_RESOURCE_GROUP --location $AKS_PERS_LOCATION
 
 # Create ACR
-az acr create --resource-group $ACR_PERS_RESOURCE_GROUP --name $ACR_NAME --sku Basic --admin-enabled true
+az acr create --resource-group $AKS_PERS_RESOURCE_GROUP --name $ACR_NAME --sku Basic --admin-enabled true
 acrLoginServer=$(az acr show -n $ACR_NAME --query 'loginServer' -o tsv)
 acrUserName=$(az acr credential show -n $ACR_NAME --query 'username' -o tsv)
 acrPassword=$(az acr credential show -n $ACR_NAME --query 'passwords[0].value' -o tsv)
@@ -98,7 +98,7 @@ kubectl create secret docker-registry regsecret \
 clusterInput=${wlsaksDir}/cluster.yaml
 myClusterInput=${wlsaksDir}/my-cluster.yaml
 cp ${clusterInput} ${myClusterInput}
-sed -i -e "s;^image\:.*;image\: ${imagePath};g" ${myClusterInput}
+sed -i -e "s;^image\:.*;image\: \"${imagePath}\";g" ${myClusterInput}
 kubectl apply -f ${myClusterInput}
 
 echo "Create LB for testing"
