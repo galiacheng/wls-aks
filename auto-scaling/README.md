@@ -56,7 +56,7 @@ Build the webhook image with the following commands:
 
 ```bash
 # cd wls-aks/auto-scaling
-$ docker image build -t webhook:1.0 ./wehhook
+$ docker image build -t webhook:1.0 ./webhook
 [+] Building 4.3s (12/12) FINISHED                                                                                                                     
  => [internal] load build definition from Dockerfile                                                                                              0.1s
  => => transferring dockerfile: 38B                                                                                                               0.0s
