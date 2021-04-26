@@ -62,6 +62,8 @@ spec:
       value: "-Dweblogic.StdoutDebugEnabled=false"
     - name: USER_MEM_ARGS
       value: "-Djava.security.egd=file:/dev/./urandom -Xms256m -Xmx512m "
+    - name: MANAGED_SERVER_PREFIX
+      value: "@MANAGED_SERVER_PREFIX@"
     resources:
       requests:
         cpu: "@RESOURCE_CPU@"

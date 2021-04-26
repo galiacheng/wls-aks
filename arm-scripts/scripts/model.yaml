@@ -13,7 +13,7 @@ topology:
     "cluster-1":
       DynamicServers:
         ServerTemplate: "cluster-1-template"
-        ServerNamePrefix: "managed-1-server"
+        ServerNamePrefix: "@@ENV:MANAGED_SERVER_PREFIX@@"
         DynamicClusterSize: "@@PROP:CLUSTER_SIZE@@"
         MaxDynamicClusterSize: "@@PROP:CLUSTER_SIZE@@"
         MinDynamicClusterSize: "0"

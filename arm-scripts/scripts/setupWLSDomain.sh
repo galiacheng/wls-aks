@@ -152,6 +152,8 @@ function setup_wls_domain() {
     sed -i -e "s:@WLS_IMAGE_PATH_ACR@:$azureACRServer/aks-wls-images\:${newImageTag}:g" ${customDomainYaml}
     sed -i -e "s:@RESOURCE_CPU@:${wlsCPU}:g" ${customDomainYaml}
     sed -i -e "s:@RESOURCE_MEMORY@:${wlsMemory}:g" ${customDomainYaml}
+    sed -i -e "s:@DOMAIN_NAME@:${wlsDomainName}:g" ${customDomainYaml}
+    sed -i -e "s:@MANAGED_SERVER_PREFIX@:${managedServerPrefix}:g" ${customDomainYaml}
 
     wait_for_domain_completed
 }
@@ -168,17 +170,17 @@ function wait_for_domain_completed() {
         # If the job is completed, there should have the following services created,
         #    ${domainUID}-${adminServerName}, e.g. domain1-admin-server
         #    ${domainUID}-${adminServerName}-ext, e.g. domain1-admin-server-ext
-        adminServiceCount=`kubectl get svc | grep -c "${wlsDomainUID}-${adminServerName}"`
+        adminServiceCount=`kubectl -n ${wlsDomainNS} get svc | grep -c "${wlsDomainUID}-${adminServerName}"`
         if [ ${adminServiceCount} -lt 2 ]; then svcState="running"; fi
 
         # If the job is completed, there should have the following services created, .assuming initialManagedServerReplicas=2
         #    ${domainUID}-${managedServerNameBase}1, e.g. domain1-managed-server1
         #    ${domainUID}-${managedServerNameBase}2, e.g. domain1-managed-server2
-        managedServiceCount=`kubectl get svc | grep -c "${wlsDomainUID}-${managedServerPrefix}"`
+        managedServiceCount=`kubectl -n ${wlsDomainNS} get svc | grep -c "${wlsDomainUID}-${managedServerPrefix}"`
         if [ ${managedServiceCount} -lt ${appReplicas} ]; then svcState="running"; fi
 
         # If the job is completed, there should have no service in pending status.
-        pendingCount=`kubectl get pod | grep -c "pending"`
+        pendingCount=`kubectl -n ${wlsDomainNS} get pod | grep -c "pending"`
         if [ ${pendingCount} -ne 0 ]; then svcState="running"; fi
 
         # If the job is completed, there should have the following pods running
@@ -186,7 +188,7 @@ function wait_for_domain_completed() {
         #    ${domainUID}-${managedServerNameBase}1, e.g. domain1-managed-server1 
         #    to
         #    ${domainUID}-${managedServerNameBase}n, e.g. domain1-managed-servern, n = initialManagedServerReplicas
-        runningPodCount=`kubectl get pods | grep "${wlsDomainUID}" | grep -c "Running"`
+        runningPodCount=`kubectl -n ${wlsDomainNS} get pods | grep "${wlsDomainUID}" | grep -c "Running"`
         if [[ $runningPodCount -le ${appReplicas} ]]; then svcState="running"; fi
     done
 
@@ -194,8 +196,8 @@ function wait_for_domain_completed() {
     # Otherwise, ask the user to refer to document for troubleshooting
     if [ "$svcState" == "completed" ];
     then 
-        kubectl get pods
-        kubectl get svc
+        kubectl -n ${wlsDomainNS} get pods
+        kubectl -n ${wlsDomainNS} get svc
     else
         echo It takes a little long to create domain, please refer to http://oracle.github.io/weblogic-kubernetes-operator/samples/simple/azure-kubernetes-service/#troubleshooting
         exit 1
@@ -212,14 +214,15 @@ export aksClusterRGName=$3
 export aksClusterName=$4
 export wlsImageTag=$5
 export acrName=$6
-export wlsDomainUID=$7
-export wlsUserName=$8
-export wlsPassword=$9
-export wdtRuntimePassword=${10}
-export wlsCPU=${11}
-export wlsMemory=${12}
-export managedServerPrefix=${13}
-export appReplicas=${14}
+export wlsDomainName=$7
+export wlsDomainUID=$8
+export wlsUserName=$9
+export wlsPassword=${10}
+export wdtRuntimePassword=${11}
+export wlsCPU=${12}
+export wlsMemory=${13}
+export managedServerPrefix=${14}
+export appReplicas=${15}
 
 export adminServerName="admin-server"
 export ocrLoginServer="container-registry.oracle.com"
