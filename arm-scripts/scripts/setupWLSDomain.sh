@@ -74,14 +74,6 @@ function install_utilities() {
     java -version
     validate_status "Check status of Zulu JDK 8."
 
-    javaHome=/usr/lib/jvm/zulu-8-azure-amd64/bin;
-    if [ -d "${javaHome}" ];then
-        export JAVA_HOME=/usr/lib/jvm/zulu-8-azure-amd64/bin
-    else
-        echo_stderr "Java home does not exist."
-        exit 1
-    fi
-
     echo "git version"
     git --version
     validate_status "Check status of git."

@@ -8,9 +8,10 @@ export azureACRUserName=$3
 export azureACRPassword=$4
 export imageTag=$5
 
-export acrImagePath=$azureACRServer/aks-wls-images:${imageTag}
+export acrImagePath="$azureACRServer/aks-wls-images:${imageTag}"
 export wdtDownloadURL="https://github.com/oracle/weblogic-deploy-tooling/releases/download/release-1.9.7/weblogic-deploy.zip";
 export witDownloadURL="https://github.com/oracle/weblogic-image-tool/releases/download/release-1.9.5/imagetool.zip"
+export JAVA_HOME=/usr/lib/jvm/zulu-8-azure-amd64
 
 
 if [ -d "model-images" ]; then
@@ -59,7 +60,7 @@ zip -r ${scriptDir}/model-images/archive.zip wlsdeploy
     --wdtArchive ${scriptDir}/model-images/archive.zip \
     --wdtModelOnly \
     --wdtDomainType WLS \
-    --chown oracle:oracle
+    --chown oracle:root
 
 if [ $? == 1 ]; then
     fail "Build image failed."
@@ -72,9 +73,9 @@ docker tag model-in-image:WLS-v1 ${acrImagePath}
 docker logout
 docker login $azureACRServer -u ${azureACRUserName} -p ${azureACRPassword}
 
-docker push ${acrImagePath}
+docker push -q ${acrImagePath}
 
 if [ $? == 1 ]; then
-    fail "Push image ${acrImagePath} failed."
+    echo "Push image ${acrImagePath} failed."
     exit 1
 fi
