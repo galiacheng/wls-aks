@@ -31,14 +31,6 @@ function install_utilities() {
     mkdir apps
     cd apps
 
-    # Install docker
-    apk update
-    apk add gettext
-    apk add docker-cli
-    echo "docker Version"
-    docker --version
-    validate_status "Check status of docker."
-
     # Install kubectl and connect to the AKS cluster
     az aks install-cli
     echo "kubectl version"
@@ -53,27 +45,9 @@ function install_utilities() {
     helm version
     validate_status "Check status of helm."
 
-    # Install Zulu JDK 8
-    wget https://cdn.azul.com/public_keys/alpine-signing@azul.com-5d5dc44c.rsa.pub
-    cp alpine-signing@azul.com-5d5dc44c.rsa.pub /etc/apk/keys/
-    echo "https://repos.azul.com/zulu/alpine" >>/etc/apk/repositories
-    apk update
-    apk add zulu8-jdk
-    echo "java version"
-    java -version
-    validate_status "Check status of Zulu JDK 8."
-
     echo "az cli version"
     az --version
     validate_status "Check status of az cli."
-
-    echo "git version"
-    git --version
-    validate_status "Check status of git."
-
-    echo "unzip version"
-    unzip --help
-    validate_status "Check status of unzip."
 }
 
 function connect_aks_cluster() {
