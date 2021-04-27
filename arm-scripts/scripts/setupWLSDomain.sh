@@ -81,7 +81,7 @@ function build_docker_image() {
     vmName="VM-UBUNTU"
 
     az vm create \
-    --resource-group ${currentcurrentResourceGroup} \
+    --resource-group ${currentResourceGroup} \
     --name ${vmName} \
     --image UbuntuLTS \
     --admin-username azureuser \
@@ -92,7 +92,7 @@ function build_docker_image() {
     wlsImagePath="${ocrLoginServer}/middleware/weblogic:${wlsImageTag}"
     az vm extension set --name CustomScript \
     --extension-instance-name wls-image-script \
-    --resource-group ${currentcurrentResourceGroup} \
+    --resource-group ${currentResourceGroup} \
     --vm-name ${vmName} \
     --publisher Microsoft.Azure.Extensions \
     --version 2.0 \
@@ -258,7 +258,7 @@ export wlsMemory=${13}
 export managedServerPrefix=${14}
 export appReplicas=${15}
 export appPackageUrl=${16}
-export currentcurrentResourceGroup=${17}
+export currentResourceGroup=${17}
 export scriptURL=${18}
 
 export adminServerName="admin-server"
