@@ -14,9 +14,8 @@ function usage() {
 
 # Validate teminal status with $?, exit if errors happen.
 function validate_status() {
-    echo "$@" >&2
-
     if [ $? == 1 ]; then
+        echo "$@" >&2
         echo "Errors happen, exit 1."
         exit 1
     fi
