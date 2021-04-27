@@ -32,24 +32,12 @@ function install_utilities() {
     cd apps
 
     # Install docker
-    sudo apt-get update
-    sudo apt-get -q install apt-transport-https
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-    echo \
-    "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
-    $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
-    sudo apt-get update
-    sudo apt-get -q install docker-ce docker-ce-cli containerd.io
-
+    apk update
+    apk add gettext
+    apk add docker-cli
     echo "docker Version"
     docker --version
     validate_status "Check status of docker."
-
-    # Install az cli
-    curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-    echo "az cli version"
-    az --version
-    validate_status "Check status of az cli."
 
     # Install kubectl and connect to the AKS cluster
     az aks install-cli
@@ -60,41 +48,32 @@ function install_utilities() {
     # Install helm
     curl -LO https://get.helm.sh/helm-v3.5.4-linux-amd64.tar.gz
     tar -zxvf helm-v3.5.4-linux-amd64.tar.gz
-    sudo mv linux-amd64/helm /usr/local/bin/helm
+    mv linux-amd64/helm /usr/local/bin/helm
     echo "helm version"
     helm version
     validate_status "Check status of helm."
 
     # Install Zulu JDK 8
-    sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 0xB1998361219BD9C9
-    sudo apt-add-repository "deb http://repos.azul.com/azure-only/zulu/apt stable main"
-    sudo apt-get -q update
-    sudo apt-get -q -y install zulu-8-azure-jdk
+    wget https://cdn.azul.com/public_keys/alpine-signing@azul.com-5d5dc44c.rsa.pub
+    cp alpine-signing@azul.com-5d5dc44c.rsa.pub /etc/apk/keys/
+    echo "https://repos.azul.com/zulu/alpine" >>/etc/apk/repositories
+    apk update
+    apk add zulu8-jdk
     echo "java version"
     java -version
     validate_status "Check status of Zulu JDK 8."
+
+    echo "az cli version"
+    az --version
+    validate_status "Check status of az cli."
 
     echo "git version"
     git --version
     validate_status "Check status of git."
 
-    sudo apt install zip
-    zip --help
-    validate_status "Check status of zip."
-
-    sudo apt install unzip
     echo "unzip version"
     unzip --help
     validate_status "Check status of unzip."
-}
-
-function get_wls_image_from_ocr() {
-    docker logout
-    docker login ${ocrLoginServer} -u ${ocrSSOUser} -p ${ocrSSOPSW}
-    wlsImagePath=container-registry.oracle.com/middleware/weblogic:${wlsImageTag}
-    echo "Start to pull image ${wlsImagePath}"
-    docker pull -q ${wlsImagePath}
-    validate_status "Finish pulling image from OCR."
 }
 
 function connect_aks_cluster() {
@@ -120,11 +99,91 @@ function query_acr_credentials() {
     azureACRServer=$(az acr show -n $acrName --query 'loginServer' -o tsv)
     azureACRUserName=$(az acr credential show -n $acrName --query 'username' -o tsv)
     azureACRPassword=$(az acr credential show -n $acrName --query 'passwords[0].value' -o tsv)
+    validate_status "Query ACR credentials."
 }
 
 function build_docker_image() {
-    chmod ugo+x ${scriptDir}/buildWLSDockerImage.sh
-    bash ${scriptDir}/buildWLSDockerImage.sh ${wlsImagePath} ${azureACRServer} ${azureACRUserName} ${azureACRPassword} ${newImageTag}
+    # Create vm to build docker image
+    vmName="VM-UBUNTU"
+
+    az vm create \
+    --resource-group ${currentcurrentResourceGroup} \
+    --name ${vmName} \
+    --image UbuntuLTS \
+    --admin-username azureuser \
+    --generate-ssh-keys \
+    --nsg-rule NONE \
+    --verbose
+
+    wlsImagePath="${ocrLoginServer}/middleware/weblogic:${wlsImageTag}"
+    az vm extension set --name CustomScript \
+    --extension-instance-name wls-image-script \
+    --resource-group ${currentcurrentResourceGroup} \
+    --vm-name ${vmName} \
+    --publisher Microsoft.Azure.Extensions \
+    --version 2.0 \
+    --settings "{ \"fileUris\": [\"${scriptURL}/model.yaml\",\"${scriptURL}/model.properties\",\"${scriptURL}/buildWLSDockerImage.sh\"]}" \
+    --protected-settings "{\"commandToExecute\":\"bash buildWLSDockerImage.sh ${wlsImagePath} ${azureACRServer} ${azureACRUserName} ${azureACRPassword} ${newImageTag} ${appPackageUrl} ${ocrSSOUser} ${ocrSSOPSW}\"}"
+
+    # If error fires, keep vm resource and exit.
+    validate_status "Check status of buiding WLS domain image."
+
+    #Remove VM resources
+    az extension add --name resource-graph;
+    # query vm id
+    vmId=$(az graph query -q "Resources \
+| where type =~ 'microsoft.compute/virtualmachines' \
+| where name=~ '${vmName}' \
+| where resourceGroup  =~ '${currentResourceGroup}' \
+| project vmid = id" -o tsv)
+
+    # query nic id
+    nicId=$(az graph query -q "Resources \
+| where type =~ 'microsoft.compute/virtualmachines' \
+| where name=~ '${vmName}' \
+| where resourceGroup  =~ '${currentResourceGroup}' \
+| extend nics=array_length(properties.networkProfile.networkInterfaces) \
+| mv-expand nic=properties.networkProfile.networkInterfaces \
+| where nics == 1 or nic.properties.primary =~ 'true' or isempty(nic) \
+| project nicId = tostring(nic.id)" -o tsv)
+
+    # query ip id
+    ipId=$(az graph query -q "Resources \
+| where type =~ 'microsoft.network/networkinterfaces' \
+| where id=~ '${nicId}' \
+| extend ipConfigsCount=array_length(properties.ipConfigurations) \
+| mv-expand ipconfig=properties.ipConfigurations \
+| where ipConfigsCount == 1 or ipconfig.properties.primary =~ 'true' \
+| project  publicIpId = tostring(ipconfig.properties.publicIPAddress.id)" -o tsv)
+
+    # query os disk id
+    osDiskId=$(az graph query -q "Resources \
+| where type =~ 'microsoft.compute/virtualmachines' \
+| where name=~ '${vmName}' \
+| where resourceGroup  =~ '${currentResourceGroup}' \
+| project osDiskId = tostring(properties.storageProfile.osDisk.managedDisk.id)" -o tsv)
+
+    # query vnet id
+    vnetId=$(az graph query -q "Resources \
+| where type =~ 'Microsoft.Network/virtualNetworks' \
+| where name=~ '${vmName}VNET' \
+| where resourceGroup  =~ '${currentResourceGroup}' \
+| project vNetId = id" -o tsv)
+
+    # query nsg id
+    nsgId=$(az graph query -q "Resources \
+| where type =~ 'Microsoft.Network/networkSecurityGroups' \
+| where name=~ '${vmName}NSG' \
+| where resourceGroup  =~ '${currentResourceGroup}' \
+| project nsgId = id" -o tsv)
+
+    IDS=$(echo ${vmId} ${nicId} ${ipId} ${osDiskId} ${vnetId} ${nsgId})
+
+    az resource delete --verbose --ids ${IDS}
+
+    #Validate image from ACR
+    az acr repository show -n ${acrName} --image aks-wls-images:${newImageTag}
+    validate_status "Check if new image aks-wls-images:${newImageTag} is pushed to acr."
 }
 
 function setup_wls_domain() {
@@ -170,32 +229,31 @@ function wait_for_domain_completed() {
         # If the job is completed, there should have the following services created,
         #    ${domainUID}-${adminServerName}, e.g. domain1-admin-server
         #    ${domainUID}-${adminServerName}-ext, e.g. domain1-admin-server-ext
-        adminServiceCount=`kubectl -n ${wlsDomainNS} get svc | grep -c "${wlsDomainUID}-${adminServerName}"`
+        adminServiceCount=$(kubectl -n ${wlsDomainNS} get svc | grep -c "${wlsDomainUID}-${adminServerName}")
         if [ ${adminServiceCount} -lt 2 ]; then svcState="running"; fi
 
         # If the job is completed, there should have the following services created, .assuming initialManagedServerReplicas=2
         #    ${domainUID}-${managedServerNameBase}1, e.g. domain1-managed-server1
         #    ${domainUID}-${managedServerNameBase}2, e.g. domain1-managed-server2
-        managedServiceCount=`kubectl -n ${wlsDomainNS} get svc | grep -c "${wlsDomainUID}-${managedServerPrefix}"`
+        managedServiceCount=$(kubectl -n ${wlsDomainNS} get svc | grep -c "${wlsDomainUID}-${managedServerPrefix}")
         if [ ${managedServiceCount} -lt ${appReplicas} ]; then svcState="running"; fi
 
         # If the job is completed, there should have no service in pending status.
-        pendingCount=`kubectl -n ${wlsDomainNS} get pod | grep -c "pending"`
+        pendingCount=$(kubectl -n ${wlsDomainNS} get pod | grep -c "pending")
         if [ ${pendingCount} -ne 0 ]; then svcState="running"; fi
 
         # If the job is completed, there should have the following pods running
         #    ${domainUID}-${adminServerName}, e.g. domain1-admin-server
-        #    ${domainUID}-${managedServerNameBase}1, e.g. domain1-managed-server1 
+        #    ${domainUID}-${managedServerNameBase}1, e.g. domain1-managed-server1
         #    to
         #    ${domainUID}-${managedServerNameBase}n, e.g. domain1-managed-servern, n = initialManagedServerReplicas
-        runningPodCount=`kubectl -n ${wlsDomainNS} get pods | grep "${wlsDomainUID}" | grep -c "Running"`
+        runningPodCount=$(kubectl -n ${wlsDomainNS} get pods | grep "${wlsDomainUID}" | grep -c "Running")
         if [[ $runningPodCount -le ${appReplicas} ]]; then svcState="running"; fi
     done
 
     # If all the services are completed, print service details
     # Otherwise, ask the user to refer to document for troubleshooting
-    if [ "$svcState" == "completed" ];
-    then 
+    if [ "$svcState" == "completed" ]; then
         kubectl -n ${wlsDomainNS} get pods
         kubectl -n ${wlsDomainNS} get svc
     else
@@ -223,6 +281,9 @@ export wlsCPU=${12}
 export wlsMemory=${13}
 export managedServerPrefix=${14}
 export appReplicas=${15}
+export appPackageUrl=${16}
+export currentcurrentResourceGroup=${17}
+export scriptURL=${18}
 
 export adminServerName="admin-server"
 export ocrLoginServer="container-registry.oracle.com"
@@ -235,9 +296,7 @@ export wlsOptNameSpace="weblogic-operator-ns"
 export wlsOptRelease="weblogic-operator"
 export wlsOptSA="weblogic-operator-sa"
 
-# install_utilities
-
-get_wls_image_from_ocr
+install_utilities
 
 query_acr_credentials
 
