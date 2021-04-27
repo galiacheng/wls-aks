@@ -70,6 +70,7 @@ function install_wls_operator() {
 
 function query_acr_credentials() {
     azureACRServer=$(az acr show -n $acrName --query 'loginServer' -o tsv)
+    echo ${azureACRServer}
     azureACRUserName=$(az acr credential show -n $acrName --query 'username' -o tsv)
     azureACRPassword=$(az acr credential show -n $acrName --query 'passwords[0].value' -o tsv)
     validate_status "Query ACR credentials."
@@ -181,11 +182,13 @@ function setup_wls_domain() {
     customDomainYaml=${scriptDir}/custom-domain.yaml
     cp ${scriptDir}/domain.yaml ${customDomainYaml}
     sed -i -e "s:@WLS_DOMAIN_UID@:${wlsDomainUID}:g" ${customDomainYaml}
-    sed -i -e "s:@WLS_IMAGE_PATH_ACR@:$azureACRServer/aks-wls-images\:${newImageTag}:g" ${customDomainYaml}
+    sed -i -e "s:@WLS_IMAGE_PATH_ACR@:${azureACRServer}/aks-wls-images\:${newImageTag}:g" ${customDomainYaml}
     sed -i -e "s:@RESOURCE_CPU@:${wlsCPU}:g" ${customDomainYaml}
     sed -i -e "s:@RESOURCE_MEMORY@:${wlsMemory}:g" ${customDomainYaml}
     sed -i -e "s:@DOMAIN_NAME@:${wlsDomainName}:g" ${customDomainYaml}
     sed -i -e "s:@MANAGED_SERVER_PREFIX@:${managedServerPrefix}:g" ${customDomainYaml}
+
+    kubectl apply -f ${customDomainYaml}
 
     wait_for_domain_completed
 }
@@ -193,7 +196,7 @@ function setup_wls_domain() {
 function wait_for_domain_completed() {
     attempts=0
     svcState="running"
-    while [ ! "$svcState" == "completed" ] && [ ! $attempts -eq 30 ]; do
+    while [ ! "$svcState" == "completed" ] && [ $attempts -lt 10 ]; do
         svcState="completed"
         attempts=$((attempts + 1))
         echo Waiting for job completed...${attempts}
