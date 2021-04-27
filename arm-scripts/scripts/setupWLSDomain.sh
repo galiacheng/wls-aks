@@ -29,6 +29,7 @@ function install_utilities() {
 
     mkdir apps
     cd apps
+    touch stdout
 
     # Install kubectl and connect to the AKS cluster
     az aks install-cli
@@ -47,10 +48,12 @@ function install_utilities() {
     echo "az cli version"
     az --version
     validate_status "Check status of az cli."
+    ret=$(az account show)
+    echo $ret >> stdout
 }
 
 function connect_aks_cluster() {
-    az aks get-credentials --resource-group ${aksClusterRGName} --name ${aksClusterName}
+    az aks get-credentials --resource-group ${aksClusterRGName} --name ${aksClusterName} --overwrite-existing
 }
 
 function install_wls_operator() {
