@@ -275,6 +275,8 @@ export wlsOptNameSpace="weblogic-operator-ns"
 export wlsOptRelease="weblogic-operator"
 export wlsOptSA="weblogic-operator-sa"
 
+$ErrorActionPreference = 'Stop'
+
 install_utilities
 
 query_acr_credentials
