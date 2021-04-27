@@ -33,7 +33,7 @@ function install_utilities() {
     # Install kubectl and connect to the AKS cluster
     az aks install-cli
     echo "kubectl version"
-    kubectl version
+    kubectl --help
     validate_status "Check status of kubectl."
 
     # Install helm
