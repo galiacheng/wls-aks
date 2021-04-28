@@ -5,19 +5,27 @@ echo "Script starts"
 #Function to output message to StdErr
 function echo_stderr() {
     echo "$@" >&2
+    echo "$@" >>stdout
+}
+
+function echo_stdout() {
+    echo "$@" >&2
+    echo "$@" >>stdout
 }
 
 #Function to display usage message
 function usage() {
-    echo_stderr ""
+    echo_stdout ""
 }
 
 # Validate teminal status with $?, exit if errors happen.
 function validate_status() {
     if [ $? == 1 ]; then
-        echo "$@" >&2
-        echo "Errors happen, exit 1."
+        echo_stderr $@
+        echo_stderr "Errors happen, exit 1."
         exit 1
+    else
+        echo_stdout $@
     fi
 }
 
@@ -33,22 +41,26 @@ function install_utilities() {
     # Install kubectl
     az aks install-cli
     echo "kubectl version"
-    kubectl --help
-    validate_status "Check status of kubectl."
+    ret=$(kubectl --help)
+    validate_status ${ret}
 
     # Install helm
     curl -LO https://get.helm.sh/helm-v3.5.4-linux-amd64.tar.gz
     tar -zxvf helm-v3.5.4-linux-amd64.tar.gz
     mv linux-amd64/helm /usr/local/bin/helm
     echo "helm version"
-    helm version
-    validate_status "Check status of helm."
+    ret=$(helm version)
+    validate_status ${ret}
 
     echo "az cli version"
-    az --version
-    validate_status "Check status of az cli."
+    ret=$(az --version)
+    validate_status ${ret}
     ret=$(az account show)
-    echo $ret >> stdout
+    echo $ret >>stdout
+    if [ -n $(echo ${ret} | grep "systemAssignedIdentity") ]; then
+        echo_stderr "Make sure you are using user assigned identity."
+        exit 1
+    fi
 }
 
 function connect_aks_cluster() {
@@ -61,18 +73,21 @@ function install_wls_operator() {
 
     helm repo add ${wlsOptRelease} ${wlsOptHelmChart} --force-update
     helm repo list
-    helm install ${wlsOptRelease} weblogic-operator/weblogic-operator \
-    --namespace ${wlsOptNameSpace} \
-    --set serviceAccount=${wlsOptSA} \
-    --set "enableClusterRoleBinding=true" \
-    --set "domainNamespaceSelectionStrategy=LabelSelector" \
-    --set "domainNamespaceLabelSelector=weblogic-operator\=enabled" \
-    --wait
+    ret=$(
+        helm install ${wlsOptRelease} weblogic-operator/weblogic-operator \
+        --namespace ${wlsOptNameSpace} \
+        --set serviceAccount=${wlsOptSA} \
+        --set "enableClusterRoleBinding=true" \
+        --set "domainNamespaceSelectionStrategy=LabelSelector" \
+        --set "domainNamespaceLabelSelector=weblogic-operator\=enabled" \
+        --wait
+    )
+    validate_status ${ret}
 }
 
 function query_acr_credentials() {
     azureACRServer=$(az acr show -n $acrName --query 'loginServer' -o tsv)
-    echo ${azureACRServer}
+    validate_status ${azureACRServer}
     azureACRUserName=$(az acr credential show -n $acrName --query 'username' -o tsv)
     azureACRPassword=$(az acr credential show -n $acrName --query 'passwords[0].value' -o tsv)
     validate_status "Query ACR credentials."
@@ -85,10 +100,13 @@ function build_docker_image() {
     az vm create \
     --resource-group ${currentResourceGroup} \
     --name ${vmName} \
-    --image UbuntuLTS \
+    --image Canonical:UbuntuServer:18.04-LTS:latest \
     --admin-username azureuser \
     --generate-ssh-keys \
     --nsg-rule NONE \
+    --enable-agent true \
+    --enable-vtpm false \
+    --enable-auto-update false \
     --verbose
 
     wlsImagePath="${ocrLoginServer}/middleware/weblogic:${wlsImageTag}"
@@ -103,59 +121,6 @@ function build_docker_image() {
 
     # If error fires, keep vm resource and exit.
     validate_status "Check status of buiding WLS domain image."
-
-    #Remove VM resources
-    az extension add --name resource-graph;
-    # query vm id
-    vmId=$(az graph query -q "Resources \
-| where type =~ 'microsoft.compute/virtualmachines' \
-| where name=~ '${vmName}' \
-| where resourceGroup  =~ '${currentResourceGroup}' \
-| project vmid = id" -o tsv)
-
-    # query nic id
-    nicId=$(az graph query -q "Resources \
-| where type =~ 'microsoft.compute/virtualmachines' \
-| where name=~ '${vmName}' \
-| where resourceGroup  =~ '${currentResourceGroup}' \
-| extend nics=array_length(properties.networkProfile.networkInterfaces) \
-| mv-expand nic=properties.networkProfile.networkInterfaces \
-| where nics == 1 or nic.properties.primary =~ 'true' or isempty(nic) \
-| project nicId = tostring(nic.id)" -o tsv)
-
-    # query ip id
-    ipId=$(az graph query -q "Resources \
-| where type =~ 'microsoft.network/networkinterfaces' \
-| where id=~ '${nicId}' \
-| extend ipConfigsCount=array_length(properties.ipConfigurations) \
-| mv-expand ipconfig=properties.ipConfigurations \
-| where ipConfigsCount == 1 or ipconfig.properties.primary =~ 'true' \
-| project  publicIpId = tostring(ipconfig.properties.publicIPAddress.id)" -o tsv)
-
-    # query os disk id
-    osDiskId=$(az graph query -q "Resources \
-| where type =~ 'microsoft.compute/virtualmachines' \
-| where name=~ '${vmName}' \
-| where resourceGroup  =~ '${currentResourceGroup}' \
-| project osDiskId = tostring(properties.storageProfile.osDisk.managedDisk.id)" -o tsv)
-
-    # query vnet id
-    vnetId=$(az graph query -q "Resources \
-| where type =~ 'Microsoft.Network/virtualNetworks' \
-| where name=~ '${vmName}VNET' \
-| where resourceGroup  =~ '${currentResourceGroup}' \
-| project vNetId = id" -o tsv)
-
-    # query nsg id
-    nsgId=$(az graph query -q "Resources \
-| where type =~ 'Microsoft.Network/networkSecurityGroups' \
-| where name=~ '${vmName}NSG' \
-| where resourceGroup  =~ '${currentResourceGroup}' \
-| project nsgId = id" -o tsv)
-
-    IDS=$(echo ${vmId} ${nicId} ${ipId} ${osDiskId} ${vnetId} ${nsgId})
-
-    az resource delete --verbose --ids ${IDS}
 
     #Validate image from ACR
     az acr repository show -n ${acrName} --image aks-wls-images:${newImageTag}
@@ -241,6 +206,60 @@ function wait_for_domain_completed() {
     fi
 }
 
+function cleanup() {
+    #Remove VM resources
+    az extension add --name resource-graph
+    # query vm id
+    vmId=$(az graph query -q "Resources \
+| where type =~ 'microsoft.compute/virtualmachines' \
+| where name=~ '${vmName}' \
+| where resourceGroup  =~ '${currentResourceGroup}' \
+| project vmid = id" -o tsv)
+
+    # query nic id
+    nicId=$(az graph query -q "Resources \
+| where type =~ 'microsoft.compute/virtualmachines' \
+| where name=~ '${vmName}' \
+| where resourceGroup  =~ '${currentResourceGroup}' \
+| extend nics=array_length(properties.networkProfile.networkInterfaces) \
+| mv-expand nic=properties.networkProfile.networkInterfaces \
+| where nics == 1 or nic.properties.primary =~ 'true' or isempty(nic) \
+| project nicId = tostring(nic.id)" -o tsv)
+
+    # query ip id
+    ipId=$(az graph query -q "Resources \
+| where type =~ 'microsoft.network/networkinterfaces' \
+| where id=~ '${nicId}' \
+| extend ipConfigsCount=array_length(properties.ipConfigurations) \
+| mv-expand ipconfig=properties.ipConfigurations \
+| where ipConfigsCount == 1 or ipconfig.properties.primary =~ 'true' \
+| project  publicIpId = tostring(ipconfig.properties.publicIPAddress.id)" -o tsv)
+
+    # query os disk id
+    osDiskId=$(az graph query -q "Resources \
+| where type =~ 'microsoft.compute/virtualmachines' \
+| where name=~ '${vmName}' \
+| where resourceGroup  =~ '${currentResourceGroup}' \
+| project osDiskId = tostring(properties.storageProfile.osDisk.managedDisk.id)" -o tsv)
+
+    # query vnet id
+    vnetId=$(az graph query -q "Resources \
+| where type =~ 'Microsoft.Network/virtualNetworks' \
+| where name=~ '${vmName}VNET' \
+| where resourceGroup  =~ '${currentResourceGroup}' \
+| project vNetId = id" -o tsv)
+
+    # query nsg id
+    nsgId=$(az graph query -q "Resources \
+| where type =~ 'Microsoft.Network/networkSecurityGroups' \
+| where name=~ '${vmName}NSG' \
+| where resourceGroup  =~ '${currentResourceGroup}' \
+| project nsgId = id" -o tsv)
+
+    vmResourceIdS=$(echo ${vmId} ${nicId} ${ipId} ${osDiskId} ${vnetId} ${nsgId})
+    az resource delete --verbose --ids ${vmResourceIdS}
+}
+
 # Main script
 export script="${BASH_SOURCE[0]}"
 export scriptDir="$(cd "$(dirname "${script}")" && pwd)"
@@ -286,3 +305,5 @@ connect_aks_cluster
 install_wls_operator
 
 setup_wls_domain
+
+cleanup
