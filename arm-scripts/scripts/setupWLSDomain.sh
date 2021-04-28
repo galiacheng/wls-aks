@@ -29,9 +29,8 @@ function install_utilities() {
 
     mkdir apps
     cd apps
-    touch stdout
 
-    # Install kubectl and connect to the AKS cluster
+    # Install kubectl
     az aks install-cli
     echo "kubectl version"
     kubectl --help

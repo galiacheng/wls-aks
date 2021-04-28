@@ -5,9 +5,8 @@ function echo_stderr() {
 
 # Validate teminal status with $?, exit if errors happen.
 function validate_status() {
-    echo "$@" >&2
-
     if [ $? == 1 ]; then
+        echo "$@" >&2
         echo "Errors happen, exit 1."
         exit 1
     fi
@@ -81,8 +80,8 @@ function install_utilities() {
     sudo apt-get update
     sudo apt-get -q install docker-ce docker-ce-cli containerd.io
 
-    echo "docker Version"
-    docker --version
+    echo "docker version"
+    sudo docker --version
     validate_status "Check status of docker."
 
     # Install Zulu JDK 8
@@ -118,10 +117,10 @@ function install_utilities() {
 }
 
 function get_wls_image_from_ocr() {
-    docker logout
-    docker login ${ocrLoginServer} -u ${ocrSSOUser} -p ${ocrSSOPSW}
+    sudo docker logout
+    sudo docker login ${ocrLoginServer} -u ${ocrSSOUser} -p ${ocrSSOPSW}
     echo "Start to pull image ${wlsImagePath}"
-    docker pull -q ${wlsImagePath}
+    sudo docker pull -q ${wlsImagePath}
     validate_status "Finish pulling image from OCR."
 }
 
