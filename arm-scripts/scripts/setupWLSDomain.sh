@@ -156,7 +156,7 @@ function build_docker_image() {
 
     IDS=$(echo ${vmId} ${nicId} ${ipId} ${osDiskId} ${vnetId} ${nsgId})
 
-    az resource delete --verbose --ids ${IDS}
+    # az resource delete --verbose --ids ${IDS}
 
     #Validate image from ACR
     az acr repository show -n ${acrName} --image aks-wls-images:${newImageTag}
@@ -274,8 +274,6 @@ export wlsOptHelmChart="https://oracle.github.io/weblogic-kubernetes-operator/ch
 export wlsOptNameSpace="weblogic-operator-ns"
 export wlsOptRelease="weblogic-operator"
 export wlsOptSA="weblogic-operator-sa"
-
-$ErrorActionPreference = 'Stop'
 
 install_utilities
 
