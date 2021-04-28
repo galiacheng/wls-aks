@@ -19,11 +19,11 @@ function usage() {
 # Validate teminal status with $?, exit if errors happen.
 function validate_status() {
     if [ $? == 1 ]; then
-        echo_stderr $@
+        echo_stderr "$@"
         echo_stderr "Errors happen, exit 1."
         exit 1
     else
-        echo_stdout $@
+        echo_stdout "$@"
     fi
 }
 
@@ -45,6 +45,7 @@ function install_utilities() {
     # Install helm
     curl -LO https://get.helm.sh/helm-v3.5.4-linux-amd64.tar.gz
     tar -zxvf helm-v3.5.4-linux-amd64.tar.gz
+    chmod +x linux-amd64/helm
     mv linux-amd64/helm /usr/local/bin/helm
     echo "helm version"
     ret=$(helm version)
