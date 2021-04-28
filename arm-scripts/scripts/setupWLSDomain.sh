@@ -72,17 +72,15 @@ function install_wls_operator() {
     kubectl -n ${wlsOptNameSpace} create serviceaccount ${wlsOptSA}
 
     helm repo add ${wlsOptRelease} ${wlsOptHelmChart} --force-update
-    helm repo list
-    ret=$(
-        helm install ${wlsOptRelease} weblogic-operator/weblogic-operator \
-        --namespace ${wlsOptNameSpace} \
-        --set serviceAccount=${wlsOptSA} \
-        --set "enableClusterRoleBinding=true" \
-        --set "domainNamespaceSelectionStrategy=LabelSelector" \
-        --set "domainNamespaceLabelSelector=weblogic-operator\=enabled" \
-        --wait
-    )
+    ret=$(helm repo list)
     validate_status ${ret}
+    helm install ${wlsOptRelease} weblogic-operator/weblogic-operator \
+    --namespace ${wlsOptNameSpace} \
+    --set serviceAccount=${wlsOptSA} \
+    --set "enableClusterRoleBinding=true" \
+    --set "domainNamespaceSelectionStrategy=LabelSelector" \
+    --set "domainNamespaceLabelSelector=weblogic-operator\=enabled" \
+    --wait
 }
 
 function query_acr_credentials() {
@@ -100,7 +98,7 @@ function build_docker_image() {
     az vm create \
     --resource-group ${currentResourceGroup} \
     --name ${vmName} \
-    --image Canonical:UbuntuServer:18.04-LTS:latest \
+    --image "Canonical:UbuntuServer:18.04-LTS:latest" \
     --admin-username azureuser \
     --generate-ssh-keys \
     --nsg-rule NONE \
@@ -146,7 +144,7 @@ function setup_wls_domain() {
     -n ${wlsDomainNS}
 
     # generate domain yaml
-    customDomainYaml=${scriptDir}/custom-domain.yaml.template
+    customDomainYaml=${scriptDir}/custom-domain.yaml
     cp ${scriptDir}/domain.yaml.template ${customDomainYaml}
     sed -i -e "s:@WLS_DOMAIN_UID@:${wlsDomainUID}:g" ${customDomainYaml}
     sed -i -e "s:@WLS_IMAGE_PATH_ACR@:${azureACRServer}/aks-wls-images\:${newImageTag}:g" ${customDomainYaml}
