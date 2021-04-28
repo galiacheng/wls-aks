@@ -72,13 +72,13 @@ function initialize() {
 function install_utilities() {
     # Install docker
     sudo apt-get update
-    sudo apt-get -q install apt-transport-https
+    sudo apt-get -y -q install apt-transport-https
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
     echo \
         "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
     $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
     sudo apt-get update
-    sudo apt-get -q install docker-ce docker-ce-cli containerd.io
+    sudo apt-get -y -q install docker-ce docker-ce-cli containerd.io
 
     echo "docker version"
     sudo docker --version
@@ -88,7 +88,7 @@ function install_utilities() {
     sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 0xB1998361219BD9C9
     sudo apt-add-repository "deb http://repos.azul.com/azure-only/zulu/apt stable main"
     sudo apt-get -q update
-    sudo apt-get -q -y install zulu-8-azure-jdk
+    sudo apt-get -y -q -y install zulu-8-azure-jdk
     echo "java version"
     java -version
     validate_status "Check status of Zulu JDK 8."
@@ -99,11 +99,11 @@ function install_utilities() {
         exit 1
     fi
 
-    sudo apt install zip
+    sudo apt -y -q install zip
     zip --help
     validate_status "Check status of zip."
 
-    sudo apt install unzip
+    sudo apt -y -q install unzip
     echo "unzip version"
     unzip --help
     validate_status "Check status of unzip."
