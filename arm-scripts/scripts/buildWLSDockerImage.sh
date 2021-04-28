@@ -142,6 +142,7 @@ function build_wls_image() {
     zip -r ${scriptDir}/model-images/archive.zip wlsdeploy
 
     # Build image
+    echo "Start building WLS image."
     ./imagetool/bin/imagetool.sh update \
         --tag model-in-image:WLS-v1 \
         --fromImage ${wlsImagePath} \
@@ -159,10 +160,10 @@ function build_wls_image() {
     # Push image to ACR
     sudo docker logout
     sudo docker login $azureACRServer -u ${azureACRUserName} -p ${azureACRPassword}
-
+    echo "Start pushing image ${acrImagePath} to $azureACRServer."
     sudo docker push -q ${acrImagePath}
-
     validate_status "Check status of pushing WLS domain image."
+    echo "Finish pushing image ${acrImagePath} to $azureACRServer."
 }
 
 # Initialize

@@ -155,7 +155,7 @@ function build_docker_image() {
 
     IDS=$(echo ${vmId} ${nicId} ${ipId} ${osDiskId} ${vnetId} ${nsgId})
 
-    # az resource delete --verbose --ids ${IDS}
+    az resource delete --verbose --ids ${IDS}
 
     #Validate image from ACR
     az acr repository show -n ${acrName} --image aks-wls-images:${newImageTag}
@@ -181,14 +181,15 @@ function setup_wls_domain() {
     -n ${wlsDomainNS}
 
     # generate domain yaml
-    customDomainYaml=${scriptDir}/custom-domain.yaml
-    cp ${scriptDir}/domain.yaml ${customDomainYaml}
+    customDomainYaml=${scriptDir}/custom-domain.yaml.template
+    cp ${scriptDir}/domain.yaml.template ${customDomainYaml}
     sed -i -e "s:@WLS_DOMAIN_UID@:${wlsDomainUID}:g" ${customDomainYaml}
     sed -i -e "s:@WLS_IMAGE_PATH_ACR@:${azureACRServer}/aks-wls-images\:${newImageTag}:g" ${customDomainYaml}
     sed -i -e "s:@RESOURCE_CPU@:${wlsCPU}:g" ${customDomainYaml}
     sed -i -e "s:@RESOURCE_MEMORY@:${wlsMemory}:g" ${customDomainYaml}
     sed -i -e "s:@DOMAIN_NAME@:${wlsDomainName}:g" ${customDomainYaml}
     sed -i -e "s:@MANAGED_SERVER_PREFIX@:${managedServerPrefix}:g" ${customDomainYaml}
+    sed -i -e "s:@WLS_CLUSTER_REPLICAS@:${appReplicas}:g" ${customDomainYaml}
 
     kubectl apply -f ${customDomainYaml}
 
@@ -202,7 +203,7 @@ function wait_for_domain_completed() {
         svcState="completed"
         attempts=$((attempts + 1))
         echo Waiting for job completed...${attempts}
-        sleep 120
+        sleep 2m
 
         # If the job is completed, there should have the following services created,
         #    ${domainUID}-${adminServerName}, e.g. domain1-admin-server
