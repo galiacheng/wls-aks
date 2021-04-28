@@ -57,7 +57,7 @@ function install_utilities() {
     validate_status ${ret}
     ret=$(az account show)
     echo $ret >>stdout
-    if [ -n $(echo ${ret} | grep "systemAssignedIdentity") ]; then
+    if [ -n `echo ${ret} | grep "systemAssignedIdentity"` ]; then
         echo_stderr "Make sure you are using user assigned identity."
         exit 1
     fi
@@ -103,9 +103,10 @@ function build_docker_image() {
     --generate-ssh-keys \
     --nsg-rule NONE \
     --enable-agent true \
-    --enable-vtpm false \
     --enable-auto-update false \
     --verbose
+
+    validate_status "Check status of VM machine to build docker image."
 
     wlsImagePath="${ocrLoginServer}/middleware/weblogic:${wlsImageTag}"
     az vm extension set --name CustomScript \
