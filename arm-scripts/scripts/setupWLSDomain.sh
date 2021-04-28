@@ -1,6 +1,4 @@
 echo "Script starts"
-#https://github.com/MicrosoftDocs/azure-docs/issues/43947
-# https://hub.docker.com/_/docker
 
 #Function to output message to StdErr
 function echo_stderr() {
@@ -163,7 +161,7 @@ function setup_wls_domain() {
 function wait_for_domain_completed() {
     attempts=0
     svcState="running"
-    while [ ! "$svcState" == "completed" ] && [ $attempts -lt 10 ]; do
+    while [ ! "$svcState" == "completed" ] && [ $attempts -lt 3 ]; do
         svcState="completed"
         attempts=$((attempts + 1))
         echo Waiting for job completed...${attempts}
