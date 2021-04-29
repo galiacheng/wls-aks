@@ -131,7 +131,7 @@ function prepare_wls_models() {
         return
     fi
 
-    echo <<EOF >>${scriptDir}/model.yaml
+    cat <<EOF >>${scriptDir}/model.yaml
 appDeployments:
   Application:
 EOF 
@@ -139,13 +139,14 @@ EOF
     appUrlArray=$(echo $appPackageUrls | tr "," "\n")
 
     index=1
-    for item in $appUrlArray; do
+    for item in $appUrlArray; 
+    do
         # e.g. https://wlsaksapp.blob.core.windows.net/japps/testwebapp.war?sp=r&se=2021-04-29T15:12:38Z&sv=2020-02-10&sr=b&sig=7grL4qP%2BcJ%2BLfDJgHXiDeQ2ZvlWosRLRQ1ciLk0Kl7M%3D
         fileNamewithQueryString="${item##*/}"
         fileName="${fileNamewithQueryString%\?*}"
         fileExtension="${fileName##*.}"
         curl -m 120 -fL "$item" -o wlsdeploy/applications/${fileName}
-        echo <<EOF >>${scriptDir}/model.yaml
+        cat <<EOF >>${scriptDir}/model.yaml
     app${index}:
       SourcePath: 'wlsdeploy/applications/${fileName}'
       ModuleType: ${fileExtension}
