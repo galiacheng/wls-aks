@@ -133,7 +133,7 @@ function prepare_wls_models() {
 
     echo <<EOF >>${scriptDir}/model.yaml
 appDeployments:
-    Application:
+  Application:
 EOF 
     appPackageUrls=echo "${appPackageUrls:1:${#appPackageUrls}-2}"
     appUrlArray=$(echo $appPackageUrls | tr "," "\n")
@@ -146,10 +146,10 @@ EOF
         fileExtension="${fileName##*.}"
         curl -m 120 -fL "$item" -o wlsdeploy/applications/${fileName}
         echo <<EOF >>${scriptDir}/model.yaml
-        app${index}:
-            SourcePath: 'wlsdeploy/applications/${fileName}'
-            ModuleType: ${fileExtension}
-            Target: 'cluster-1'
+    app${index}:
+      SourcePath: 'wlsdeploy/applications/${fileName}'
+      ModuleType: ${fileExtension}
+      Target: 'cluster-1'
 EOF
         index=$((index + 1))
     done
