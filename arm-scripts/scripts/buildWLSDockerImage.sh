@@ -38,8 +38,8 @@ function validate_inputs() {
         exit 1
     fi
 
-    if [ -z "$appPackageUrl" ]; then
-        echo_stderr "appPackageUrl is required. "
+    if [ -z "$appPackageUrls" ]; then
+        echo_stderr "appPackageUrls is required. "
         exit 1
     fi
 
@@ -125,9 +125,34 @@ function get_wls_image_from_ocr() {
 }
 
 function prepare_wls_models() {
-    # TODO change the application name
-    # curl -m 120 -fL "$appPackageUrl" -o wlsdeploy/applications/test.war
-    echo download apps
+    # Known issue: no support for package name that has comma.
+    # remove []
+    if [ "${appPackageUrls}" == "[]" ];then
+        return
+    fi
+
+    echo <<EOF >>${scriptDir}/model.yaml
+appDeployments:
+    Application:
+EOF 
+    appPackageUrls=echo "${appPackageUrls:1:${#appPackageUrls}-2}"
+    appUrlArray=$(echo $appPackageUrls | tr "," "\n")
+
+    index=1
+    for item in $appUrlArray; do
+        # e.g. https://wlsaksapp.blob.core.windows.net/japps/testwebapp.war?sp=r&se=2021-04-29T15:12:38Z&sv=2020-02-10&sr=b&sig=7grL4qP%2BcJ%2BLfDJgHXiDeQ2ZvlWosRLRQ1ciLk0Kl7M%3D
+        fileNamewithQueryString="${item##*/}"
+        fileName="${fileNamewithQueryString%\?*}"
+        fileExtension="${fileName##*.}"
+        curl -m 120 -fL "$item" -o wlsdeploy/applications/${fileName}
+        echo <<EOF >>${scriptDir}/model.yaml
+        app${index}:
+            SourcePath: 'wlsdeploy/applications/${fileName}'
+            ModuleType: ${fileExtension}
+            Target: 'cluster-1'
+EOF
+        index=$((index + 1))
+    done
 }
 
 function build_wls_image() {
@@ -175,7 +200,7 @@ export azureACRServer=$2
 export azureACRUserName=$3
 export azureACRPassword=$4
 export imageTag=$5
-export appPackageUrl=$6
+export appPackageUrls=$6
 export ocrSSOUser=$7
 export ocrSSOPSW=$8
 
