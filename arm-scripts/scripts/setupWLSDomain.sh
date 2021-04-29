@@ -162,7 +162,7 @@ function setup_wls_domain() {
 function wait_for_domain_completed() {
     attempts=0
     svcState="running"
-    while [ ! "$svcState" == "completed" ] && [ $attempts -lt 3 ]; do
+    while [ ! "$svcState" == "completed" ] && [ $attempts -lt 10 ]; do
         svcState="completed"
         attempts=$((attempts + 1))
         echo Waiting for job completed...${attempts}
@@ -170,9 +170,8 @@ function wait_for_domain_completed() {
 
         # If the job is completed, there should have the following services created,
         #    ${domainUID}-${adminServerName}, e.g. domain1-admin-server
-        #    ${domainUID}-${adminServerName}-ext, e.g. domain1-admin-server-ext
         adminServiceCount=$(kubectl -n ${wlsDomainNS} get svc | grep -c "${wlsDomainUID}-${adminServerName}")
-        if [ ${adminServiceCount} -lt 2 ]; then svcState="running"; fi
+        if [ ${adminServiceCount} -lt 1 ]; then svcState="running"; fi
 
         # If the job is completed, there should have the following services created, .assuming initialManagedServerReplicas=2
         #    ${domainUID}-${managedServerNameBase}1, e.g. domain1-managed-server1
@@ -199,8 +198,7 @@ function wait_for_domain_completed() {
         kubectl -n ${wlsDomainNS} get pods
         kubectl -n ${wlsDomainNS} get svc
     else
-        echo It takes a little long to create domain, please refer to http://oracle.github.io/weblogic-kubernetes-operator/samples/simple/azure-kubernetes-service/#troubleshooting
-        exit 1
+        echo WARNING: WebLogic domain is not ready. It takes too long to create domain, please refer to http://oracle.github.io/weblogic-kubernetes-operator/samples/simple/azure-kubernetes-service/#troubleshooting
     fi
 }
 
