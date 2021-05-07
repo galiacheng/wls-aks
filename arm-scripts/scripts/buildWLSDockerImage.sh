@@ -52,6 +52,11 @@ function validate_inputs() {
         echo_stderr "ocrSSOPSW is required. "
         exit 1
     fi
+
+    if [ -z "$wlsClusterSize" ]; then
+        echo_stderr "wlsClusterSize is required. "
+        exit 1
+    fi
 }
 
 function initialize() {
@@ -153,6 +158,10 @@ EOF
 EOF
         index=$((index + 1))
     done
+
+    cat <<EOF >>${scriptDir}/model.properties
+CLUSTER_SIZE=${wlsClusterSize}
+EOF
 }
 
 function build_wls_image() {
@@ -203,6 +212,7 @@ export imageTag=$5
 export appPackageUrls=$6
 export ocrSSOUser=$7
 export ocrSSOPSW=$8
+export wlsClusterSize=$9
 
 export acrImagePath="$azureACRServer/aks-wls-images:${imageTag}"
 export ocrLoginServer="container-registry.oracle.com"

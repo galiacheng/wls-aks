@@ -16,6 +16,98 @@ function usage() {
     echo_stdout ""
 }
 
+function validate_input() {
+    if [[ -z "$ocrSSOUser" || -z "${ocrSSOPSW}" ]]; then
+        echo_stderr "Oracle SSO account is required. "
+        exit 1
+    fi
+
+    if [[ -z "$aksClusterRGName" || -z "${aksClusterName}" ]]; then
+        echo_stderr "AKS cluster name and resource group name are required. "
+        exit 1
+    fi
+
+    if [ -z "$wlsImageTag" ]; then
+        echo_stderr "wlsImageTag is required. "
+        exit 1
+    fi
+
+    if [ -z "$acrName" ]; then
+        echo_stderr "acrName is required. "
+        exit 1
+    fi
+
+    if [ -z "$wlsDomainName" ]; then
+        echo_stderr "wlsDomainName is required. "
+        exit 1
+    fi
+
+    if [ -z "$wlsDomainUID" ]; then
+        echo_stderr "wlsDomainUID is required. "
+        exit 1
+    fi
+
+    if [ -z "$wlsUserName" ]; then
+        echo_stderr "wlsUserName is required. "
+        exit 1
+    fi
+
+    if [ -z "$wlsPassword" ]; then
+        echo_stderr "wlsPassword is required. "
+        exit 1
+    fi
+
+    if [ -z "$wdtRuntimePassword" ]; then
+        echo_stderr "wdtRuntimePassword is required. "
+        exit 1
+    fi
+
+    if [ -z "$wlsCPU" ]; then
+        echo_stderr "wlsCPU is required. "
+        exit 1
+    fi
+
+    if [ -z "$wlsMemory" ]; then
+        echo_stderr "wlsMemory is required. "
+        exit 1
+    fi
+
+    if [ -z "$managedServerPrefix" ]; then
+        echo_stderr "managedServerPrefix is required. "
+        exit 1
+    fi
+
+    if [ -z "$appReplicas" ]; then
+        echo_stderr "appReplicas is required. "
+        exit 1
+    fi
+
+    if [ -z "$appPackageUrls" ]; then
+        echo_stderr "appPackageUrls is required. "
+        exit 1
+    fi
+
+    if [ -z "$currentResourceGroup" ]; then
+        echo_stderr "currentResourceGroup is required. "
+        exit 1
+    fi
+
+    if [ -z "$scriptURL" ]; then
+        echo_stderr "scriptURL is required. "
+        exit 1
+    fi
+
+    if [ -z "$storageAccountName" ]; then
+        echo_stderr "storageAccountName is required. "
+        exit 1
+    fi
+
+    if [ -z "$wlsClusterSize" ]; then
+        echo_stderr "wlsClusterSize is required. "
+        exit 1
+    fi
+}
+
 # Validate teminal status with $?, exit if errors happen.
 function validate_status() {
     if [ $? == 1 ]; then
@@ -56,7 +148,7 @@ function install_utilities() {
     validate_status ${ret}
     ret=$(az account show)
     echo $ret >>stdout
-    if [ -n `echo ${ret} | grep "systemAssignedIdentity"` ]; then
+    if [ -n $(echo ${ret} | grep "systemAssignedIdentity") ]; then
         echo_stderr "Make sure you are using user assigned identity."
         exit 1
     fi
@@ -115,7 +207,7 @@ function build_docker_image() {
     --publisher Microsoft.Azure.Extensions \
     --version 2.0 \
     --settings "{ \"fileUris\": [\"${scriptURL}/model.yaml\",\"${scriptURL}/model.properties\",\"${scriptURL}/buildWLSDockerImage.sh\"]}" \
-    --protected-settings "{\"commandToExecute\":\"bash buildWLSDockerImage.sh ${wlsImagePath} ${azureACRServer} ${azureACRUserName} ${azureACRPassword} ${newImageTag} \\\"${appPackageUrls}\\\" ${ocrSSOUser} ${ocrSSOPSW}\"}"
+    --protected-settings "{\"commandToExecute\":\"bash buildWLSDockerImage.sh ${wlsImagePath} ${azureACRServer} ${azureACRUserName} ${azureACRPassword} ${newImageTag} \\\"${appPackageUrls}\\\" ${ocrSSOUser} ${ocrSSOPSW} ${wlsClusterSize}\"}"
 
     # If error fires, keep vm resource and exit.
     validate_status "Check status of buiding WLS domain image."
@@ -143,6 +235,10 @@ function setup_wls_domain() {
     --docker-password=${azureACRPassword} \
     -n ${wlsDomainNS}
 
+    if [[ "${storageAccountName}" != "null" ]]; then
+        create_pv
+    fi
+
     # generate domain yaml
     customDomainYaml=${scriptDir}/custom-domain.yaml
     cp ${scriptDir}/domain.yaml.template ${customDomainYaml}
@@ -157,6 +253,29 @@ function setup_wls_domain() {
     kubectl apply -f ${customDomainYaml}
 
     wait_for_domain_completed
+}
+
+function create_pv() {
+    export storageAccountKey=$(az storage account keys list --resource-group $currentResourceGroup --account-name $storageAccountName --query "[0].value" -o tsv)
+    export azureSecretName="azure-secret"
+    kubectl -n ${wlsDomainNS} create secret generic ${azureSecretName} \
+    --from-literal=azurestorageaccountname=${storageAccountName} \
+    --from-literal=azurestorageaccountkey=${storageAccountKey}
+
+    # generate pv configurations
+    customPVYaml=${scriptDir}/pv.yaml
+    cp ${scriptDir}/pv.yaml.template ${customPVYaml}
+    sed -i -e "s:@NAMESPACE@:${wlsDomainNS}:g" ${customPVYaml}
+    sed -i -e "s:@PV_NME@:${wlsDomainUID}-pv-azurefile:g" ${customPVYaml}
+
+    # generate pv configurations
+    customPVCYaml=${scriptDir}/pvc.yaml
+    cp ${scriptDir}/pvc.yaml.template ${customPVCYaml}
+    sed -i -e "s:@NAMESPACE@:${wlsDomainNS}:g" ${customPVCYaml}
+    sed -i -e "s:@PVC_NAME@:${wlsDomainUID}-pvc-azurefile:g" ${customPVCYaml}
+
+    kubectl apply -f ${customPVYaml}
+    kubectl apply -f ${customPVCYaml}
 }
 
 function wait_for_domain_completed() {
@@ -278,17 +397,22 @@ export appReplicas=${15}
 export appPackageUrls=${16}
 export currentResourceGroup=${17}
 export scriptURL=${18}
+export storageAccountName=${19}
+export wlsClusterSize=${20}
 
 export adminServerName="admin-server"
 export ocrLoginServer="container-registry.oracle.com"
 export kubectlSecretForACR="regsecret"
 export kubectlWLSCredentials="${wlsDomainUID}-weblogic-credentials"
 export newImageTag=$(date +%s)
+export storageFileShareName="weblogic"
 export wlsDomainNS="${wlsDomainUID}-ns"
 export wlsOptHelmChart="https://oracle.github.io/weblogic-kubernetes-operator/charts"
 export wlsOptNameSpace="weblogic-operator-ns"
 export wlsOptRelease="weblogic-operator"
 export wlsOptSA="weblogic-operator-sa"
+
+validate_input
 
 install_utilities
 
