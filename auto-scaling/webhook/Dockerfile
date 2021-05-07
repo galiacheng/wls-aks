@@ -1,6 +1,7 @@
 FROM store/oracle/serverjre:8
 
 COPY apps/webhook /bin/webhook
+RUN chmod +x /bin/webhook
 
 COPY webhooks/hooks.json /etc/webhook/
 
