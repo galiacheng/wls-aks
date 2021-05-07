@@ -9,7 +9,7 @@ Following the guide you can customize your scaling flows.
 - [kubectl](https://kubernetes-io-vnext-staging.netlify.com/docs/tasks/tools/install-kubectl/); use kubectl version to test if kubectl works. This document was tested with version v1.16.3.
 - [Helm](https://helm.sh/docs/intro/install/), version 3.1 and later; use helm version to check the helm version. This document was tested with version v3.2.4.
 - JDK 8 or 11.
-- Assuming you are creating the WLS domain with guide in this sample, otherwise, you have to change the domain UID and cluster name for all the configurations in manifests folder.
+- Assuming you are creating the WLS domain with guide in this sample, otherwise, you have to deploy [wls-exporter.war](../wls-aks/wls-domain-image/wlsdeploy/applications/wls-exporter.war), change the domain UID and cluster name for all the configurations in manifests folder.
 
 ##### Weblogic Monitoring Exporter
 
