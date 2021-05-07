@@ -24,7 +24,7 @@ Following the guide you can customize your scaling flows.
 
 ##### Running WLS on AKS custer
 
-- Follow [this document](../wls-aks/README.md) to create one.
+- Follow [this document](../wls-aks/README.md) to WLS domain.
 
 ##### Webhook
 
