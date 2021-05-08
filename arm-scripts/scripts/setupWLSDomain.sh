@@ -1,6 +1,6 @@
 echo "Script starts"
 
-#Function to output message to StdErr
+#Function to output message to stdout
 function echo_stderr() {
     echo "$@" >&2
     echo "$@" >>stdout
@@ -16,6 +16,7 @@ function usage() {
     echo_stdout ""
 }
 
+#Function to validate input
 function validate_input() {
     if [[ -z "$ocrSSOUser" || -z "${ocrSSOPSW}" ]]; then
         echo_stderr "Oracle SSO account is required. "
@@ -108,7 +109,7 @@ function validate_input() {
     fi
 }
 
-# Validate teminal status with $?, exit if errors happen.
+# Validate teminal status with $?, exit with exception if errors happen.
 function validate_status() {
     if [ $? == 1 ]; then
         echo_stderr "$@"
@@ -119,7 +120,7 @@ function validate_status() {
     fi
 }
 
-# Install docker, kubectl, helm and java
+# Install latest kubectl and helm
 function install_utilities() {
     if [ -d "apps" ]; then
         rm apps -f -r
@@ -135,8 +136,15 @@ function install_utilities() {
     validate_status ${ret}
 
     # Install helm
-    curl -LO https://get.helm.sh/helm-v3.5.4-linux-amd64.tar.gz
-    tar -zxvf helm-v3.5.4-linux-amd64.tar.gz
+    browserURL=$(curl -s https://api.github.com/repos/helm/helm/releases/latest  \
+    | grep "browser_download_url.*linux-amd64.tar.gz.asc" \
+    | cut -d : -f 2,3 \
+    | tr -d \")
+    helmLatestVersion=${browserURL#*download\/}
+    helmLatestVersion=${helmLatestVersion%%\/helm*}
+    helmPackageName=helm-${helmLatestVersion}-linux-amd64.tar.gz
+    curl -LO -s https://get.helm.sh/${helmPackageName}
+    tar -zxvf ${helmPackageName}
     chmod +x linux-amd64/helm
     mv linux-amd64/helm /usr/local/bin/helm
     echo "helm version"
@@ -154,10 +162,15 @@ function install_utilities() {
     fi
 }
 
+# Connect to AKS cluster
 function connect_aks_cluster() {
     az aks get-credentials --resource-group ${aksClusterRGName} --name ${aksClusterName} --overwrite-existing
 }
 
+# Install WebLogic operator using charts from GitHub Repo
+# * Create namespace weblogic-operator-ns
+# * Create service account
+# * install operator
 function install_wls_operator() {
     kubectl create namespace ${wlsOptNameSpace}
     kubectl -n ${wlsOptNameSpace} create serviceaccount ${wlsOptSA}
@@ -174,6 +187,7 @@ function install_wls_operator() {
     --wait
 }
 
+# Query ACR login server, username, password
 function query_acr_credentials() {
     azureACRServer=$(az acr show -n $acrName --query 'loginServer' -o tsv)
     validate_status ${azureACRServer}
@@ -182,6 +196,11 @@ function query_acr_credentials() {
     validate_status "Query ACR credentials."
 }
 
+# Build docker image
+#  * Create Ubuntu machine VM-UBUNTU
+#  * Running vm extension to run buildWLSDockerImage.sh, the script will:
+#    * build a docker image with domain model, applications based on specified WebLogic Standard image
+#    * push the image to ACR
 function build_docker_image() {
     # Create vm to build docker image
     vmName="VM-UBUNTU"
@@ -214,9 +233,16 @@ function build_docker_image() {
 
     #Validate image from ACR
     az acr repository show -n ${acrName} --image aks-wls-images:${newImageTag}
-    validate_status "Check if new image aks-wls-images:${newImageTag} is pushed to acr."
+    validate_status "Check if new image aks-wls-images:${newImageTag} has been pushed to acr."
 }
 
+# Deploy WebLogic domain and cluster
+#  * Create namespace for domain
+#  * Create secret for weblogic
+#  * Create secret for Azure file
+#  * Create secret for ACR
+#  * Deploy WebLogic domain using image in ACR
+#  * Wait for the domain completed
 function setup_wls_domain() {
     kubectl create namespace ${wlsDomainNS}
     kubectl label namespace ${wlsDomainNS} weblogic-operator=enabled
@@ -255,6 +281,10 @@ function setup_wls_domain() {
     wait_for_domain_completed
 }
 
+# Create storage for AKS cluster
+# * Create secret for storage account
+# * Create PV using Azure file share
+# * Create PVC
 function create_pv() {
     export storageAccountKey=$(az storage account keys list --resource-group $currentResourceGroup --account-name $storageAccountName --query "[0].value" -o tsv)
     export azureSecretName="azure-secret"
@@ -265,17 +295,25 @@ function create_pv() {
     # generate pv configurations
     customPVYaml=${scriptDir}/pv.yaml
     cp ${scriptDir}/pv.yaml.template ${customPVYaml}
+    pvName=${wlsDomainUID}-pv-azurefile
     sed -i -e "s:@NAMESPACE@:${wlsDomainNS}:g" ${customPVYaml}
-    sed -i -e "s:@PV_NME@:${wlsDomainUID}-pv-azurefile:g" ${customPVYaml}
+    sed -i -e "s:@PV_NME@:${pvName}:g" ${customPVYaml}
 
     # generate pv configurations
     customPVCYaml=${scriptDir}/pvc.yaml
     cp ${scriptDir}/pvc.yaml.template ${customPVCYaml}
+    pvcName=${wlsDomainUID}-pvc-azurefile
     sed -i -e "s:@NAMESPACE@:${wlsDomainNS}:g" ${customPVCYaml}
-    sed -i -e "s:@PVC_NAME@:${wlsDomainUID}-pvc-azurefile:g" ${customPVCYaml}
+    sed -i -e "s:@PVC_NAME@:${pvcName}:g" ${customPVCYaml}
 
     kubectl apply -f ${customPVYaml}
     kubectl apply -f ${customPVCYaml}
+
+    # validate PV PVC
+    ret=$(kubectl get pv | grep "${pvName}" | grep "${pvcName}")
+    if [ -z "$ret" ];then
+        echo_stderr "Failed to create pv/pvc."
+    fi 
 }
 
 function wait_for_domain_completed() {
@@ -318,6 +356,8 @@ function wait_for_domain_completed() {
         kubectl -n ${wlsDomainNS} get svc
     else
         echo WARNING: WebLogic domain is not ready. It takes too long to create domain, please refer to http://oracle.github.io/weblogic-kubernetes-operator/samples/simple/azure-kubernetes-service/#troubleshooting
+        cleanup
+        exit 1
     fi
 }
 
@@ -373,6 +413,7 @@ function cleanup() {
 
     vmResourceIdS=$(echo ${vmId} ${nicId} ${ipId} ${osDiskId} ${vnetId} ${nsgId})
     az resource delete --verbose --ids ${vmResourceIdS}
+    validate_status "Deleting vm resources."
 }
 
 # Main script
