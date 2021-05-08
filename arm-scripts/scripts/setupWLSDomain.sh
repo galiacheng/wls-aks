@@ -217,6 +217,7 @@ function build_docker_image() {
     # Create vm to build docker image
     vmName="VM-UBUNTU"
 
+    # Specify tag 'SkipASMAzSecPack' to skip policy 'linuxazuresecuritypackautodeployiaas_1.6'
     az vm create \
     --resource-group ${currentResourceGroup} \
     --name ${vmName} \
@@ -226,6 +227,7 @@ function build_docker_image() {
     --nsg-rule NONE \
     --enable-agent true \
     --enable-auto-update false \
+    --tags SkipASMAzSecPack=true \
     --verbose
 
     validate_status "Check status of VM machine to build docker image."
