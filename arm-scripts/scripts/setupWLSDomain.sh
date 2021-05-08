@@ -185,6 +185,15 @@ function install_wls_operator() {
     --set "domainNamespaceSelectionStrategy=LabelSelector" \
     --set "domainNamespaceLabelSelector=weblogic-operator\=enabled" \
     --wait
+
+    validate_status "Installing WLS operator."
+
+    # valiadate weblogic operator
+    ret=$(kubectl get pod -n ${wlsOptNameSpace} | grep "Running")
+    if [ -z "$ret" ];then
+        echo_stderr "Failed to install WebLogic operator."
+        exit 1
+    fi
 }
 
 # Query ACR login server, username, password
@@ -214,6 +223,7 @@ function build_docker_image() {
     --nsg-rule NONE \
     --enable-agent true \
     --enable-auto-update false \
+    --enable-secure-boot false \
     --verbose
 
     validate_status "Check status of VM machine to build docker image."
@@ -362,8 +372,7 @@ function wait_for_domain_completed() {
         kubectl -n ${wlsDomainNS} get svc
     else
         echo WARNING: WebLogic domain is not ready. It takes too long to create domain, please refer to http://oracle.github.io/weblogic-kubernetes-operator/samples/simple/azure-kubernetes-service/#troubleshooting
-        cleanup
-        exit 1
+        exitCode=1
     fi
 }
 
@@ -448,6 +457,7 @@ export storageAccountName=${19}
 export wlsClusterSize=${20}
 
 export adminServerName="admin-server"
+export exitCode=0
 export ocrLoginServer="container-registry.oracle.com"
 export kubectlSecretForACR="regsecret"
 export kubectlWLSCredentials="${wlsDomainUID}-weblogic-credentials"
@@ -474,3 +484,5 @@ install_wls_operator
 setup_wls_domain
 
 cleanup
+
+exit ${exitCode}
