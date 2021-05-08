@@ -13,99 +13,102 @@ function echo_stdout() {
 
 #Function to display usage message
 function usage() {
-    echo_stdout ""
+    echo_stdout "./setupWLSDomain.sh <ocrSSOUser> <ocrSSOPSW> <aksClusterRGName> <aksClusterName> <wlsImageTag> <acrName> <wlsDomainName> <wlsDomainUID> <wlsUserName> <wlsPassword> <wdtRuntimePassword> <wlsCPU> <wlsMemory> <managedServerPrefix> <appReplicas> <appPackageUrls> <currentResourceGroup> <scriptURL> <storageAccountName> <wlsClusterSize>"
+    if [ $1 -eq 1 ]; then
+        exit 1
+    fi
 }
 
 #Function to validate input
 function validate_input() {
     if [[ -z "$ocrSSOUser" || -z "${ocrSSOPSW}" ]]; then
         echo_stderr "Oracle SSO account is required. "
-        exit 1
+        usage 1
     fi
 
     if [[ -z "$aksClusterRGName" || -z "${aksClusterName}" ]]; then
         echo_stderr "AKS cluster name and resource group name are required. "
-        exit 1
+        usage 1
     fi
 
     if [ -z "$wlsImageTag" ]; then
         echo_stderr "wlsImageTag is required. "
-        exit 1
+        usage 1
     fi
 
     if [ -z "$acrName" ]; then
         echo_stderr "acrName is required. "
-        exit 1
+        usage 1
     fi
 
     if [ -z "$wlsDomainName" ]; then
         echo_stderr "wlsDomainName is required. "
-        exit 1
+        usage 1
     fi
 
     if [ -z "$wlsDomainUID" ]; then
         echo_stderr "wlsDomainUID is required. "
-        exit 1
+        usage 1
     fi
 
     if [ -z "$wlsUserName" ]; then
         echo_stderr "wlsUserName is required. "
-        exit 1
+        usage 1
     fi
 
     if [ -z "$wlsPassword" ]; then
         echo_stderr "wlsPassword is required. "
-        exit 1
+        usage 1
     fi
 
     if [ -z "$wdtRuntimePassword" ]; then
         echo_stderr "wdtRuntimePassword is required. "
-        exit 1
+        usage 1
     fi
 
     if [ -z "$wlsCPU" ]; then
         echo_stderr "wlsCPU is required. "
-        exit 1
+        usage 1
     fi
 
     if [ -z "$wlsMemory" ]; then
         echo_stderr "wlsMemory is required. "
-        exit 1
+        usage 1
     fi
 
     if [ -z "$managedServerPrefix" ]; then
         echo_stderr "managedServerPrefix is required. "
-        exit 1
+        usage 1
     fi
 
     if [ -z "$appReplicas" ]; then
         echo_stderr "appReplicas is required. "
-        exit 1
+        usage 1
     fi
 
     if [ -z "$appPackageUrls" ]; then
         echo_stderr "appPackageUrls is required. "
-        exit 1
+        usage 1
     fi
 
     if [ -z "$currentResourceGroup" ]; then
         echo_stderr "currentResourceGroup is required. "
-        exit 1
+        usage 1
     fi
 
     if [ -z "$scriptURL" ]; then
         echo_stderr "scriptURL is required. "
-        exit 1
+        usage 1
     fi
 
     if [ -z "$storageAccountName" ]; then
         echo_stderr "storageAccountName is required. "
-        exit 1
+        usage 1
     fi
 
     if [ -z "$wlsClusterSize" ]; then
         echo_stderr "wlsClusterSize is required. "
-        exit 1
+        usage 1
     fi
 }
 
@@ -223,7 +226,6 @@ function build_docker_image() {
     --nsg-rule NONE \
     --enable-agent true \
     --enable-auto-update false \
-    --enable-secure-boot false \
     --verbose
 
     validate_status "Check status of VM machine to build docker image."

@@ -3,6 +3,14 @@ function echo_stderr() {
     echo "$@" >&2
 }
 
+#Function to display usage message
+function usage() {
+    echo_stdout "./buildWLSDockerImage.sh <wlsImagePath> <azureACRServer> <azureACRUserName> <azureACRPassword> <imageTag> <appPackageUrls> <ocrSSOUser> <ocrSSOPSW> <wlsClusterSize>"
+    if [ $1 -eq 1 ]; then
+        exit 1
+    fi
+}
+
 # Validate teminal status with $?, exit if errors happen.
 function validate_status() {
     if [ $? == 1 ]; then
@@ -15,47 +23,47 @@ function validate_status() {
 function validate_inputs() {
     if [ -z "$wlsImagePath" ]; then
         echo_stderr "wlsImagePath is required. "
-        exit 1
+        usage 1
     fi
 
     if [ -z "$azureACRServer" ]; then
         echo_stderr "azureACRServer is required. "
-        exit 1
+        usage 1
     fi
 
     if [ -z "$azureACRUserName" ]; then
         echo_stderr "azureACRUserName is required. "
-        exit 1
+        usage 1
     fi
 
     if [ -z "$azureACRPassword" ]; then
         echo_stderr "azureACRPassword is required. "
-        exit 1
+        usage 1
     fi
 
     if [ -z "$imageTag" ]; then
         echo_stderr "imageTag is required. "
-        exit 1
+        usage 1
     fi
 
     if [ -z "$appPackageUrls" ]; then
         echo_stderr "appPackageUrls is required. "
-        exit 1
+        usage 1
     fi
 
     if [ -z "$ocrSSOUser" ]; then
         echo_stderr "ocrSSOUser is required. "
-        exit 1
+        usage 1
     fi
 
     if [ -z "$ocrSSOPSW" ]; then
         echo_stderr "ocrSSOPSW is required. "
-        exit 1
+        usage 1
     fi
 
     if [ -z "$wlsClusterSize" ]; then
         echo_stderr "wlsClusterSize is required. "
-        exit 1
+        usage 1
     fi
 }
 
