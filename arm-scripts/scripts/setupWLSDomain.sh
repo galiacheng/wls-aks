@@ -218,6 +218,9 @@ function build_docker_image() {
 
     validate_status "Check status of VM machine to build docker image."
 
+    # Check if VM is ready for used
+    az vm wait -g ${currentResourceGroup} -n ${vmName} --created
+
     wlsImagePath="${ocrLoginServer}/middleware/weblogic:${wlsImageTag}"
     az vm extension set --name CustomScript \
     --extension-instance-name wls-image-script \
@@ -230,6 +233,9 @@ function build_docker_image() {
 
     # If error fires, keep vm resource and exit.
     validate_status "Check status of buiding WLS domain image."
+
+    # Wait for vm extension created
+    az vm extension wait --updated --name CustomScript --resource-group ${currentResourceGroup} --vm-name ${vmName}
 
     #Validate image from ACR
     az acr repository show -n ${acrName} --image aks-wls-images:${newImageTag}
