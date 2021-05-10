@@ -257,6 +257,8 @@ function build_docker_image() {
     #Validate image from ACR
     az acr repository show -n ${acrName} --image aks-wls-images:${newImageTag}
     validate_status "Check if new image aks-wls-images:${newImageTag} has been pushed to acr."
+
+    cleanup_vm
 }
 
 # Deploy WebLogic domain and cluster
@@ -379,11 +381,11 @@ function wait_for_domain_completed() {
         kubectl -n ${wlsDomainNS} get svc
     else
         echo WARNING: WebLogic domain is not ready. It takes too long to create domain, please refer to http://oracle.github.io/weblogic-kubernetes-operator/samples/simple/azure-kubernetes-service/#troubleshooting
-        exitCode=1
+        exit 1
     fi
 }
 
-function cleanup() {
+function cleanup_vm() {
     #Remove VM resources
     az extension add --name resource-graph
     # query vm id
@@ -468,7 +470,6 @@ export storageAccountName=${19}
 export wlsClusterSize=${20}
 
 export adminServerName="admin-server"
-export exitCode=0
 export ocrLoginServer="container-registry.oracle.com"
 export kubectlSecretForACR="regsecret"
 export kubectlWLSCredentials="${wlsDomainUID}-weblogic-credentials"
@@ -493,7 +494,3 @@ connect_aks_cluster
 install_wls_operator
 
 setup_wls_domain
-
-cleanup
-
-exit ${exitCode}
