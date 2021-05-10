@@ -428,10 +428,8 @@ function cleanup() {
 | where resourceGroup  =~ '${currentResourceGroup}' \
 | project nsgId = id" -o tsv)
 
-    # Delete VM
-    az vm delete -y --ids ${vmId} --force-deletion
-    # Delete NIC IP VNET NSG resoruces
-    vmResourceIdS=$(echo ${nicId} ${ipId} ${osDiskId} ${vnetId} ${nsgId})
+    # Delete VM NIC IP VNET NSG resoruces
+    vmResourceIdS=$(echo ${vmId} ${nicId} ${ipId} ${osDiskId} ${vnetId} ${nsgId})
     echo ${vmResourceIdS}
     az resource delete --verbose --ids ${vmResourceIdS}
 }
