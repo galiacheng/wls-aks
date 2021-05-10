@@ -230,12 +230,13 @@ function build_docker_image() {
     --nsg-rule NONE \
     --enable-agent true \
     --enable-auto-update false \
+    --tags SkipASMAzSecPack=true \
     --verbose
 
     validate_status "Check status of VM machine to build docker image."
 
     # Check if VM is ready for used
-    az vm wait -g ${currentResourceGroup} -n ${vmName} --created
+    # az vm wait -g ${currentResourceGroup} -n ${vmName} --created
 
     wlsImagePath="${ocrLoginServer}/middleware/weblogic:${wlsImageTag}"
     az vm extension set --name CustomScript \
@@ -251,7 +252,7 @@ function build_docker_image() {
     validate_status "Check status of buiding WLS domain image."
 
     # Wait for vm extension created
-    az vm extension wait --updated --name CustomScript --resource-group ${currentResourceGroup} --vm-name ${vmName}
+    # az vm extension wait --updated --name CustomScript --resource-group ${currentResourceGroup} --vm-name ${vmName}
 
     #Validate image from ACR
     az acr repository show -n ${acrName} --image aks-wls-images:${newImageTag}
@@ -432,11 +433,13 @@ function cleanup() {
 | where resourceGroup  =~ '${currentResourceGroup}' \
 | project nsgId = id" -o tsv)
 
-    vmResourceIdS=$(echo ${vmId} ${nicId} ${ipId} ${osDiskId} ${vnetId} ${nsgId})
+    # Delete VM
+    az vm delete -y --ids ${vmId}
+    # az vm wait --deleted --ids ${vmId}
+    # Delete NIC IP VNET NSG resoruces
+    vmResourceIdS=$(echo ${nicId} ${ipId} ${osDiskId} ${vnetId} ${nsgId})
     echo ${vmResourceIdS}
     az resource delete --verbose --ids ${vmResourceIdS}
-    
-    az vm wait --deleted --ids ${vmId}
 }
 
 # Main script
