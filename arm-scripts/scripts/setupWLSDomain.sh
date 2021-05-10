@@ -251,8 +251,6 @@ function build_docker_image() {
     #Validate image from ACR
     az acr repository show -n ${acrName} --image aks-wls-images:${newImageTag}
     validate_status "Check if new image aks-wls-images:${newImageTag} has been pushed to acr."
-
-    cleanup
 }
 
 # Deploy WebLogic domain and cluster
@@ -431,7 +429,7 @@ function cleanup() {
 | project nsgId = id" -o tsv)
 
     # Delete VM
-    az vm delete -y --ids ${vmId}
+    az vm delete -y --ids ${vmId} --force-deletion
     # Delete NIC IP VNET NSG resoruces
     vmResourceIdS=$(echo ${nicId} ${ipId} ${osDiskId} ${vnetId} ${nsgId})
     echo ${vmResourceIdS}
