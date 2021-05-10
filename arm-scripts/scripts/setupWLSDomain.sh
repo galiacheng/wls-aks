@@ -434,8 +434,10 @@ function cleanup() {
 | project nsgId = id" -o tsv)
 
     vmResourceIdS=$(echo ${vmId} ${nicId} ${ipId} ${osDiskId} ${vnetId} ${nsgId})
+    echo ${vmResourceIdS}
     az resource delete --verbose --ids ${vmResourceIdS}
-    validate_status "Deleting vm resources."
+    
+    az vm wait --deleted --ids ${vmId}
 }
 
 # Main script
