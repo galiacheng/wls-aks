@@ -235,9 +235,6 @@ function build_docker_image() {
 
     validate_status "Check status of VM machine to build docker image."
 
-    # Check if VM is ready for used
-    # az vm wait -g ${currentResourceGroup} -n ${vmName} --created
-
     wlsImagePath="${ocrLoginServer}/middleware/weblogic:${wlsImageTag}"
     az vm extension set --name CustomScript \
     --extension-instance-name wls-image-script \
@@ -251,14 +248,11 @@ function build_docker_image() {
     # If error fires, keep vm resource and exit.
     validate_status "Check status of buiding WLS domain image."
 
-    # Wait for vm extension created
-    # az vm extension wait --updated --name CustomScript --resource-group ${currentResourceGroup} --vm-name ${vmName}
-
     #Validate image from ACR
     az acr repository show -n ${acrName} --image aks-wls-images:${newImageTag}
     validate_status "Check if new image aks-wls-images:${newImageTag} has been pushed to acr."
 
-    cleanup_vm
+    cleanup
 }
 
 # Deploy WebLogic domain and cluster
@@ -381,6 +375,7 @@ function wait_for_domain_completed() {
         kubectl -n ${wlsDomainNS} get svc
     else
         echo WARNING: WebLogic domain is not ready. It takes too long to create domain, please refer to http://oracle.github.io/weblogic-kubernetes-operator/samples/simple/azure-kubernetes-service/#troubleshooting
+        cleanup
         exit 1
     fi
 }
@@ -437,7 +432,6 @@ function cleanup_vm() {
 
     # Delete VM
     az vm delete -y --ids ${vmId}
-    # az vm wait --deleted --ids ${vmId}
     # Delete NIC IP VNET NSG resoruces
     vmResourceIdS=$(echo ${nicId} ${ipId} ${osDiskId} ${vnetId} ${nsgId})
     echo ${vmResourceIdS}
@@ -494,3 +488,5 @@ connect_aks_cluster
 install_wls_operator
 
 setup_wls_domain
+
+cleanup
