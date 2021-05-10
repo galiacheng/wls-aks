@@ -380,7 +380,7 @@ function wait_for_domain_completed() {
     fi
 }
 
-function cleanup_vm() {
+function cleanup() {
     #Remove VM resources
     az extension add --name resource-graph
     # query vm id
