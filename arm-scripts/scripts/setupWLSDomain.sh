@@ -230,7 +230,6 @@ function build_docker_image() {
     --nsg-rule NONE \
     --enable-agent true \
     --enable-auto-update false \
-    --tags SkipASMAzSecPack=true \
     --verbose
 
     validate_status "Check status of VM machine to build docker image."
