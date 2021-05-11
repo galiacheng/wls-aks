@@ -145,6 +145,11 @@ function get_wls_image_from_ocr() {
 
 # Generate model configurations
 function prepare_wls_models() {
+    echo "Create configuration in properties file"
+    cat <<EOF >>${scriptDir}/model.properties
+CLUSTER_SIZE=${wlsClusterSize}
+EOF
+
     # Known issue: no support for package name that has comma.
     # remove []
     if [ "${appPackageUrls}" == "[]" ]; then
@@ -173,14 +178,6 @@ EOF
 EOF
         index=$((index + 1))
     done
-
-    echo "Create configuration in properties file"
-    chmod +wx ${scriptDir}/model.properties
-    cat <<EOF >>${scriptDir}/model.properties
-CLUSTER_SIZE=${wlsClusterSize}
-EOF
-
-    cat ${scriptDir}/model.properties
 }
 
 # Build weblogic image
