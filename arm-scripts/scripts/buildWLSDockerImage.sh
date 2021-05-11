@@ -174,6 +174,8 @@ EOF
         index=$((index + 1))
     done
 
+    echo "Create configuration in properties file"
+    chmod +wx ${scriptDir}/model.properties
     cat <<EOF >>${scriptDir}/model.properties
 CLUSTER_SIZE=${wlsClusterSize}
 EOF
