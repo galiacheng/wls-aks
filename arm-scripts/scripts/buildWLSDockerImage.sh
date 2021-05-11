@@ -100,6 +100,7 @@ function install_utilities() {
     echo "docker version"
     sudo docker --version
     validate_status "Check status of docker."
+    sudo systemctl start docker
 
     # Install Zulu JDK 8
     sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 0xB1998361219BD9C9
@@ -145,11 +146,13 @@ function get_wls_image_from_ocr() {
 
 # Generate model configurations
 function prepare_wls_models() {
+    # Create configuration in model.properties
     echo "Create configuration in properties file"
     cat <<EOF >>${scriptDir}/model.properties
 CLUSTER_SIZE=${wlsClusterSize}
 EOF
 
+    # Generate application deployment model in model.yaml
     # Known issue: no support for package name that has comma.
     # remove []
     if [ "${appPackageUrls}" == "[]" ]; then
