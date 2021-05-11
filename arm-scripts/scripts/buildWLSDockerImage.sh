@@ -177,6 +177,8 @@ EOF
     cat <<EOF >>${scriptDir}/model.properties
 CLUSTER_SIZE=${wlsClusterSize}
 EOF
+
+    cat ${scriptDir}/model.properties
 }
 
 # Build weblogic image
