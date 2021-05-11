@@ -84,16 +84,17 @@ function initialize() {
     mkdir wlsdeploy/applications
 }
 
-# Install docker, kubectl, helm and java
+# Install docker, zip, unzip and java
+# Download WebLogic Tools
 function install_utilities() {
     # Install docker
-    sudo apt-get update
+    sudo apt-get -q update
     sudo apt-get -y -q install apt-transport-https
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
     echo \
         "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
     $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
-    sudo apt-get update
+    sudo apt-get -q update
     sudo apt-get -y -q install docker-ce docker-ce-cli containerd.io
 
     echo "docker version"
@@ -132,6 +133,8 @@ function install_utilities() {
     validate_status "Check status of imagetool.zip."
 }
 
+# Login in OCR
+# Pull weblogic image
 function get_wls_image_from_ocr() {
     sudo docker logout
     sudo docker login ${ocrLoginServer} -u ${ocrSSOUser} -p ${ocrSSOPSW}
@@ -140,6 +143,7 @@ function get_wls_image_from_ocr() {
     validate_status "Finish pulling image from OCR."
 }
 
+# Generate model configurations
 function prepare_wls_models() {
     # Known issue: no support for package name that has comma.
     # remove []
@@ -175,6 +179,8 @@ CLUSTER_SIZE=${wlsClusterSize}
 EOF
 }
 
+# Build weblogic image
+# Push the image to ACR
 function build_wls_image() {
     # Add WDT
     unzip imagetool.zip

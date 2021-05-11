@@ -373,8 +373,7 @@ function wait_for_domain_completed() {
         kubectl -n ${wlsDomainNS} get svc
     else
         echo WARNING: WebLogic domain is not ready. It takes too long to create domain, please refer to http://oracle.github.io/weblogic-kubernetes-operator/samples/simple/azure-kubernetes-service/#troubleshooting
-        cleanup
-        exit 1
+        exitCode=1
     fi
 }
 
@@ -460,6 +459,7 @@ export storageAccountName=${19}
 export wlsClusterSize=${20}
 
 export adminServerName="admin-server"
+export exitCode=0
 export ocrLoginServer="container-registry.oracle.com"
 export kubectlSecretForACR="regsecret"
 export kubectlWLSCredentials="${wlsDomainUID}-weblogic-credentials"
@@ -486,3 +486,5 @@ install_wls_operator
 setup_wls_domain
 
 cleanup
+
+exit $exitCode
