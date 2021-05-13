@@ -127,18 +127,67 @@ EOF
 }
 
 function create_svc_lb() {
+  # No lb svc inputs
+  if [[ "${lbSvcValues}" == "[]" ]]; then
+    return
+  fi
+
   adminTargetPort=$(kubectl describe service ${svcAdminServer} -n ${wlsDomainNS} | grep 'TargetPort:' | tr -d -c 0-9)
+  validate_status "Query admin target port."
   echo "Target port of ${adminServerName}: ${adminTargetPort}"
   clusterTargetPort=$(kubectl describe service ${svcCluster} -n ${wlsDomainNS} | grep 'TargetPort:' | tr -d -c 0-9)
-  echo "Target port of ${clusterName}: ${adminTargetPort}"
+  validate_status "Query cluster 1 target port."
+  echo "Target port of ${clusterName}: ${clusterTargetPort}"
 
   # Parse lb svc input values
+  # Generate valid json
+  ret=$(echo $lbSvcValues | sed  "s/\:/\\\"\:\\\"/g" \
+    | sed  "s/{/{\"/g" \
+    | sed  "s/}/\"}/g" \
+    | sed  "s/,/\",\"/g" \
+    | sed "s/}\",\"{/},{/g" \
+    | tr -d \(\))
 
-  generate_admin_lb_definicion
-  generate_cluster_lb_definicion
+  cat <<EOF >${scriptDir}/lbConfiguration.json
+  ${ret}
+EOF
 
+  array=$(jq  -r '.[] | "\(.colName),\(.colTarget),\(.colPort)"' ${scriptDir}/lbConfiguration.json)
+  for item in $array; do
+    # LB config for admin-server
+    if [[ "$item" == "*adminServer*" ]];then
+      adminServerLBSVCName=${item%%,*} 
+      adminLBPort=${item##*,}
+      generate_admin_lb_definicion
+      kubectl apply -f ${scriptDir}/admin-server-lb.yaml
+      waitfor_svc_completed ${adminServerLBSVCName}
+    else
+      clusterLBSVCName=${item%%,*}
+      clusterLBPort=${item##*,}
+      generate_cluster_lb_definicion
+      kubectl apply -f ${scriptDir}/cluster-lb.yaml
+      waitfor_svc_completed ${clusterLBSVCName}
+    fi
+  done
+}
 
+function waitfor_svc_completed() {
+  svcName=$1
 
+  attempts=0
+  svcState="running"
+  while [ ! "$svcState" == "completed" ] && [ $attempts -lt 10 ]; do
+      svcState="completed"
+      attempts=$((attempts + 1))
+      echo Waiting for job completed...${attempts}
+      sleep 30
+      
+      ret=$(kubectl get svc ${svcName} -n ${wlsDomainNS} \
+        | grep -c "Running")
+      if [ -z "${ret}" ]; then
+        svcState="running"
+      fi
+  done
 }
 
 # Main script
@@ -159,21 +208,6 @@ export wlsDomainNS="${wlsDomainUID}-ns"
 
 echo $lbSvcValues
 
-# Generate valid json
-ret=$(echo $lbSvcValues | sed  "s/\:/\\\"\:\\\"/g" \
-  | sed  "s/{/{\"/g" \
-  | sed  "s/}/\"}/g" \
-  | sed  "s/,/\",\"/g" \
-  | sed "s/}\",\"{/},{/g" \
-  | tr -d \(\))
-
-cat <<EOF >lbConfiguration.json
-${ret}
-EOF
-
-array=$(jq  -r '.[] | "\(.colName),\(.colTarget),\(.colPort)"' lbConfiguration.json)
-for item in $array; do echo $item;done
-
 validate_input
 
 install_utilities
@@ -181,5 +215,3 @@ install_utilities
 connect_aks_cluster
 
 create_svc_lb
-
-exit 1
