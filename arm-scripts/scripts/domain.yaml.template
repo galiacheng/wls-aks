@@ -1,6 +1,8 @@
 # Copyright (c) 2021, Oracle Corporation and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at http://oss.oracle.com/licenses/upl.
 #
+# Based on ./kubernetes/samples/scripts/create-weblogic-domain/model-in-image/domain-resources/WLS/mii-initial-d1-WLS-v1.yaml
+# in https://github.com/oracle/weblogic-kubernetes-operator.
 # This is an example of how to define a Domain resource.
 #
 apiVersion: "weblogic.oracle/v8"

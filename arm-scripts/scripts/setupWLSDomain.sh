@@ -220,7 +220,9 @@ function build_docker_image() {
     # Create vm to build docker image
     vmName="VM-UBUNTU"
 
+    # MICROSOFT_INTERNAL
     # Specify tag 'SkipASMAzSecPack' to skip policy 'linuxazuresecuritypackautodeployiaas_1.6'
+    # Specify tag 'SkipNRMS*' to skip Microsoft internal NRMS policy, which cause vm-redeployed issue
     az vm create \
     --resource-group ${currentResourceGroup} \
     --name ${vmName} \
@@ -230,7 +232,7 @@ function build_docker_image() {
     --nsg-rule NONE \
     --enable-agent true \
     --enable-auto-update false \
-    --tags SkipASMAzSecPack=true \
+    --tags SkipASMAzSecPack=true SkipNRMSCorp=true SkipNRMSDatabricks=true SkipNRMSDB=true SkipNRMSHigh=true SkipNRMSMedium=true SkipNRMSRDPSSH=true SkipNRMSSAW=true SkipNRMSMgmt=true\
     --verbose
 
     validate_status "Check status of VM machine to build docker image."
@@ -251,6 +253,8 @@ function build_docker_image() {
     #Validate image from ACR
     az acr repository show -n ${acrName} --image aks-wls-images:${newImageTag}
     validate_status "Check if new image aks-wls-images:${newImageTag} has been pushed to acr."
+
+    cleanup_vm
 }
 
 # Deploy WebLogic domain and cluster
@@ -377,7 +381,7 @@ function wait_for_domain_completed() {
     fi
 }
 
-function cleanup() {
+function cleanup_vm() {
     #Remove VM resources
     az extension add --name resource-graph
     # query vm id
@@ -484,7 +488,5 @@ connect_aks_cluster
 install_wls_operator
 
 setup_wls_domain
-
-cleanup
 
 exit $exitCode

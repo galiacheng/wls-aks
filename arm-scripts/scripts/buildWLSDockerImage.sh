@@ -102,16 +102,17 @@ function install_utilities() {
     validate_status "Check status of docker."
     sudo systemctl start docker
 
-    # Install Zulu JDK 8
-    sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 0xB1998361219BD9C9
-    sudo apt-add-repository "deb http://repos.azul.com/azure-only/zulu/apt stable main"
-    sudo apt-get -q update
-    sudo apt-get -y -q -y install zulu-8-azure-jdk
+    # Install Microsoft OpenJDK
+    wget https://packages.microsoft.com/config/ubuntu/18.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
+    sudo dpkg -i packages-microsoft-prod.deb
+    sudo apt -q update
+    sudo apt -y -q install msopenjdk-11
+
     echo "java version"
     java -version
     validate_status "Check status of Zulu JDK 8."
 
-    export JAVA_HOME=/usr/lib/jvm/zulu-8-azure-amd64
+    export JAVA_HOME=/usr/lib/jvm/msopenjdk-11-amd64
     if [ ! -d "${JAVA_HOME}" ]; then
         echo "Java home ${JAVA_HOME} does not exist"
         exit 1
