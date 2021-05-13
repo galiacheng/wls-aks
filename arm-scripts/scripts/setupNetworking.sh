@@ -159,8 +159,16 @@ export wlsDomainNS="${wlsDomainUID}-ns"
 
 echo $lbSvcValues
 
+# Generate valid json
+ret=$(echo $lbSvcValues | sed  "s/\:/\\\"\:\\\"/g" \
+  | sed  "s/{/{\"/g" \
+  | sed  "s/}/\"}/g" \
+  | sed  "s/,/\",\"/g" \
+  | sed "s/}\",\"{/},{/g" \
+  | tr -d \(\))
+
 cat <<EOF >lbConfiguration.json
-${lbSvcValues}
+${ret}
 EOF
 
 array=$(jq  -r '.[] | "\(.colName),\(.colTarget),\(.colPort)"' lbConfiguration.json)
