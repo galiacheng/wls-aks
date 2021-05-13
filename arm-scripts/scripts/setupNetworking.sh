@@ -159,6 +159,13 @@ export wlsDomainNS="${wlsDomainUID}-ns"
 
 echo $lbSvcValues
 
+cat <<EOF >lbConfiguration.json
+${lbSvcValues}
+EOF
+
+array=$(jq  -r '.[] | "\(.colName),\(.colTarget),\(.colPort)"' lbConfiguration.json)
+for item in $array; do echo $item;done
+
 validate_input
 
 install_utilities
