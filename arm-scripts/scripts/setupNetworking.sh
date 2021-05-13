@@ -155,15 +155,16 @@ EOF
   array=$(jq  -r '.[] | "\(.colName),\(.colTarget),\(.colPort)"' ${scriptDir}/lbConfiguration.json)
   for item in $array; do
     # LB config for admin-server
-    if [[ "$item" == "*adminServer*" ]];then
-      adminServerLBSVCName=${item%%,*} 
-      adminLBPort=${item##*,}
+    target=$(cut -d',' -f2 <<<$item)
+    if [[ "${target}" == "adminServer" ]];then
+      adminServerLBSVCName=$(cut -d',' -f1 <<<$item)
+      adminLBPort=$(cut -d',' -f3 <<<$item)
       generate_admin_lb_definicion
       kubectl apply -f ${scriptDir}/admin-server-lb.yaml
       waitfor_svc_completed ${adminServerLBSVCName}
     else
-      clusterLBSVCName=${item%%,*}
-      clusterLBPort=${item##*,}
+      clusterLBSVCName=$(cut -d',' -f1 <<<$item)
+      clusterLBPort=$(cut -d',' -f3 <<<$item)
       generate_cluster_lb_definicion
       kubectl apply -f ${scriptDir}/cluster-lb.yaml
       waitfor_svc_completed ${clusterLBSVCName}
@@ -181,7 +182,7 @@ function waitfor_svc_completed() {
       attempts=$((attempts + 1))
       echo Waiting for job completed...${attempts}
       sleep 30
-      
+
       ret=$(kubectl get svc ${svcName} -n ${wlsDomainNS} \
         | grep -c "Running")
       if [ -z "${ret}" ]; then
