@@ -163,6 +163,8 @@ validate_input
 
 install_utilities
 
+connect_aks_cluster
+
 create_svc_lb
 
 exit 1
