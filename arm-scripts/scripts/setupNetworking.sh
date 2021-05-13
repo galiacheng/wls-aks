@@ -153,8 +153,8 @@ export lbSvcValues=$5
 
 export adminServerName="admin-server"
 export clusterName="cluster-1"
-export svcAdminServer="${wlsDomainName}-${adminServerName}"
-export svcCluster="${wlsDomainName}-${clusterName}"
+export svcAdminServer="${wlsDomainUID}-${adminServerName}"
+export svcCluster="${wlsDomainUID}-${clusterName}"
 export wlsDomainNS="${wlsDomainUID}-ns"
 
 echo $lbSvcValues
