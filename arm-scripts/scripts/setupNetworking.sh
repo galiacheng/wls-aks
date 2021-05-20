@@ -250,7 +250,11 @@ function create_appgw_ingress() {
   sed -i -e "s:@INDENTITY_ID@:${identityId}:g" ${customAppgwHelmConfig}
   sed -i -e "s:@IDENTITY_CLIENT_ID@:${identityClientId}:g" ${customAppgwHelmConfig}
 
-  kubectl apply -f ${customAppgwHelmConfig}
+  helm install ingress-azure \
+    -f ${customAppgwHelmConfig} \
+    application-gateway-kubernetes-ingress/ingress-azure \
+    --version 1.4.0
+
   validate_status "Install app gateway ingress controller."
   ret=$(kubectl get pod  | grep "ingress-azure")
   if [ -z "${ret}" ];then
