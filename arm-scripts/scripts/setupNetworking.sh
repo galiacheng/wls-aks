@@ -226,17 +226,25 @@ function create_appgw_ingress() {
   query_cluster_target_port
 
   # create sa and bind cluster-admin role
-  kubectl apply -f ${scriptDir}/appgw-ingress-serviceAccount.yaml
   kubectl apply -f ${scriptDir}/appgw-ingress-clusterAdmin-roleBinding.yaml
 
+  # Install aad pod identity controller
+  # https://github.com/Azure/aad-pod-identity
+  latestAADPodIdentity=$(curl -s https://api.github.com/repos/Azure/aad-pod-identity/releases/latest  \
+  | grep "browser_download_url.*deployment-rbac.yaml" \
+  | cut -d : -f 2,3 \
+  | tr -d \")
+
+  kubectl apply -f ${latestAADPodIdentity}
+
   install_helm
+
   helm repo add application-gateway-kubernetes-ingress ${appgwIngressHelmRepo}
   helm repo update
 
   # {type:UserAssigned,userAssignedIdentities:{/subscriptions/05887623-95c5-4e50-a71c-6e1c738794e2/resourceGroups/haiche-identity/providers/Microsoft.ManagedIdentity/userAssignedIdentities/wls-aks-mvp:{}}}
   identityId=${identity#*userAssignedIdentities:\{}
   identityId=${identityId%%:\{\}*}
-
   # query identity client id
   identityClientId=$(az identity show --ids ${identityId} -o tsv --query "clientId")
 
