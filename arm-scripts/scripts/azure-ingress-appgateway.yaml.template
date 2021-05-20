@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: @INGRESS_NAME@
+  namespace: @NAMESPACE@
+  annotations:
+    kubernetes.io/ingress.class: azure/application-gateway
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: @CLUSTER_SERVICE_NAME@
+                port:
+                  number: @TARGET_PORT@
