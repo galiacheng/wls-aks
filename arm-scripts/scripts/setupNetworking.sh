@@ -233,6 +233,10 @@ function create_appgw_ingress() {
   helm repo add application-gateway-kubernetes-ingress ${appgwIngressHelmRepo}
   helm repo update
 
+  # {type:UserAssigned,userAssignedIdentities:{/subscriptions/05887623-95c5-4e50-a71c-6e1c738794e2/resourceGroups/haiche-identity/providers/Microsoft.ManagedIdentity/userAssignedIdentities/wls-aks-mvp:{}}}
+  identityId=${identity#*userAssignedIdentities:\{}
+  identityId=${identityId%%:\{\}*}
+
   # query identity client id
   identityClientId=$(az identity show --ids ${identityId} -o tsv --query "clientId")
 
@@ -301,7 +305,7 @@ export subID=$7
 export curRGName=${8}
 export appgwName=${9}
 export vnetName=${10}
-export identityId=${11}
+export identity=${11}
 
 export adminServerName="admin-server"
 export appgwIngressHelmRepo="https://appgwingress.blob.core.windows.net/ingress-azure-helm-package/"
