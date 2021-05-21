@@ -31,10 +31,14 @@ kubernetes:
 #
 # Two authentication methods are available:
 # - Option 1: AAD-Pod-Identity (https://github.com/Azure/aad-pod-identity)
+# armAuth:
+#    type: aadPodIdentity
+#    identityResourceID: 
+#    identityClientID: 
+
 armAuth:
-    type: aadPodIdentity
-    identityResourceID: @INDENTITY_ID@
-    identityClientID:  @IDENTITY_CLIENT_ID@
+    type: servicePrincipal
+    secretJSON: @SP_ENCODING_CREDENTIALS@
 
 ################################################################################
 # Specify if the cluster is RBAC enabled or not
