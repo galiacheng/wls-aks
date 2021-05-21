@@ -277,7 +277,7 @@ function create_appgw_ingress() {
   cp ${scriptDir}/azure-ingress-appgateway.yaml.template ${appgwIngressSvcConfig}
   ingressSvcName="${wlsDomainUID}-appgw-ingress-svc"
   sed -i -e "s:@INGRESS_NAME@:${ingressSvcName}:g" ${appgwIngressSvcConfig}
-  sed -i -e "s:@NAMESPACE@:${wlsDomainNS}/aks-wls-images\:${newImageTag}:g" ${appgwIngressSvcConfig}
+  sed -i -e "s:@NAMESPACE@:${wlsDomainNS}:g" ${appgwIngressSvcConfig}
   sed -i -e "s:@CLUSTER_SERVICE_NAME@:${svcCluster}:g" ${appgwIngressSvcConfig}
   sed -i -e "s:@TARGET_PORT@:${clusterTargetPort}:g" ${appgwIngressSvcConfig}
 
