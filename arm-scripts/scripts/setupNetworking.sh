@@ -230,12 +230,12 @@ function create_appgw_ingress() {
 
   # Install aad pod identity controller
   # https://github.com/Azure/aad-pod-identity
-  latestAADPodIdentity=$(curl -s https://api.github.com/repos/Azure/aad-pod-identity/releases/latest  \
-  | grep "browser_download_url.*deployment-rbac.yaml" \
-  | cut -d : -f 2,3 \
-  | tr -d \")
+  # latestAADPodIdentity=$(curl -s https://api.github.com/repos/Azure/aad-pod-identity/releases/latest  \
+  # | grep "browser_download_url.*deployment-rbac.yaml" \
+  # | cut -d : -f 2,3 \
+  # | tr -d \")
 
-  kubectl apply -f ${latestAADPodIdentity}
+  # kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/v1.8.0/deploy/infra/deployment-rbac.yaml
 
   install_helm
 
@@ -243,10 +243,10 @@ function create_appgw_ingress() {
   helm repo update
 
   # {type:UserAssigned,userAssignedIdentities:{/subscriptions/05887623-95c5-4e50-a71c-6e1c738794e2/resourceGroups/haiche-identity/providers/Microsoft.ManagedIdentity/userAssignedIdentities/wls-aks-mvp:{}}}
-  identityId=${identity#*userAssignedIdentities:\{}
-  identityId=${identityId%%:\{\}*}
+  # identityId=${identity#*userAssignedIdentities:\{}
+  # identityId=${identityId%%:\{\}*}
   # query identity client id
-  identityClientId=$(az identity show --ids ${identityId} -o tsv --query "clientId")
+  # identityClientId=$(az identity show --ids ${identityId} -o tsv --query "clientId")
 
   # generate helm config
   customAppgwHelmConfig=${scriptDir}/agggw-helm-config.yaml
@@ -255,8 +255,10 @@ function create_appgw_ingress() {
   sed -i -e "s:@APPGW_RG_NAME@:${curRGName}:g" ${customAppgwHelmConfig}
   sed -i -e "s:@APPGW_NAME@:${appgwName}:g" ${customAppgwHelmConfig}
   sed -i -e "s:@WATCH_NAMESPACE@:${wlsDomainNS}:g" ${customAppgwHelmConfig}
-  sed -i -e "s:@INDENTITY_ID@:${identityId}:g" ${customAppgwHelmConfig}
-  sed -i -e "s:@IDENTITY_CLIENT_ID@:${identityClientId}:g" ${customAppgwHelmConfig}
+  # sed -i -e "s:@INDENTITY_ID@:${identityId}:g" ${customAppgwHelmConfig}
+  # sed -i -e "s:@IDENTITY_CLIENT_ID@:${identityClientId}:g" ${customAppgwHelmConfig}
+  sed -i -e "s:@SP_ENCODING_CREDENTIALS@:${spBase64String}:g" ${customAppgwHelmConfig}
+  
 
   helm install ingress-azure \
     -f ${customAppgwHelmConfig} \
@@ -317,7 +319,7 @@ export subID=$7
 export curRGName=${8}
 export appgwName=${9}
 export vnetName=${10}
-export identity=${11}
+export spBase64String=${11}
 
 export adminServerName="admin-server"
 export appgwIngressHelmRepo="https://appgwingress.blob.core.windows.net/ingress-azure-helm-package/"
