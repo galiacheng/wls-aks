@@ -217,6 +217,8 @@ function network_peers_aks_appgw() {
     --resource-group ${curRGName} \
     --vnet-name ${vnetName} \
     --allow-vnet-access
+
+  validate_status "Create network peers for $aksNetWorkId and ${vnetName}."
 }
 
 function create_appgw_ingress() {
