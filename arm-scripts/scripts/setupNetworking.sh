@@ -284,12 +284,25 @@ function create_appgw_ingress() {
     --version 1.4.0
 
   validate_status "Install app gateway ingress controller."
-  ret=$(kubectl get pod  | grep "ingress-azure")
-  echo $ret
-  if [ -z "${ret}" ];then
-    echo_stderr "Failed to install app gateway ingress controller."
-    exit 1
-  fi
+  
+  attempts=0
+  podState="running"
+  while [ ! "$podState" == "completed" ] && [ $attempts -lt 5 ]; do
+      podState="completed"
+      attempts=$((attempts + 1))
+      echo Waiting for Pod running...${attempts}
+      sleep 30
+
+      ret=$(kubectl get pod  | grep "ingress-azure")
+      if [ -z "${ret}" ]; then
+        podState="running"
+
+        if [ $attempts -ge 5 ]; then
+          echo_stderr "Failed to install app gateway ingress controller."
+          exit 1
+        fi
+      fi
+  done
 
   # generate ingress svc config
   appgwIngressSvcConfig=${scriptDir}/azure-ingress-appgateway.yaml
