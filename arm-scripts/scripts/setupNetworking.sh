@@ -255,7 +255,7 @@ function create_appgw_ingress() {
   # generate helm config
   customAppgwHelmConfig=${scriptDir}/agggw-helm-config.yaml
   cp ${scriptDir}/agggw-helm-config.yaml.template ${customAppgwHelmConfig}
-  subID=$(echo $subID | tr -d '/subscriptions/')
+  subID=${subID#*\/subscriptions\/}
   sed -i -e "s:@SUB_ID@:${subID}:g" ${customAppgwHelmConfig}
   sed -i -e "s:@APPGW_RG_NAME@:${curRGName}:g" ${customAppgwHelmConfig}
   sed -i -e "s:@APPGW_NAME@:${appgwName}:g" ${customAppgwHelmConfig}
