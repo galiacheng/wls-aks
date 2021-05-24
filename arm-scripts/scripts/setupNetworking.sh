@@ -248,9 +248,6 @@ function create_appgw_ingress() {
   # identityId=${identityId%%:\{\}*}
   # query identity client id
   # identityClientId=$(az identity show --ids ${identityId} -o tsv --query "clientId")
-  
-  # TODO: workaround for MVP demo, only for users with sub owner role.
-  spBase64String=$(az ad sp create-for-rbac --name ${spName} --sdk-auth | base64 -w0)
 
   # generate helm config
   customAppgwHelmConfig=${scriptDir}/agggw-helm-config.yaml
@@ -288,11 +285,6 @@ function create_appgw_ingress() {
   kubectl apply -f ${appgwIngressSvcConfig}
   validate_status "Create appgw ingress svc."
   waitfor_svc_completed ${ingressSvcName}
-
-  # delete sp
-  spAppId=$(az ad sp list --display-name ${spName} --query "[*].appId" -o tsv)
-  az ad sp delete --id ${spAppId}
-  validate_status "Deleting service principal"
 }
 
 function waitfor_svc_completed() {
@@ -335,9 +327,7 @@ export appgwIngressHelmRepo="https://appgwingress.blob.core.windows.net/ingress-
 export clusterName="cluster-1"
 export svcAdminServer="${wlsDomainUID}-${adminServerName}"
 export svcCluster="${wlsDomainUID}-cluster-${clusterName}"
-export timestamp=$(date +%s)
 export wlsDomainNS="${wlsDomainUID}-ns"
-export spName="wls-test-${timestamp}"
 
 echo $lbSvcValues
 
