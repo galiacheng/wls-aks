@@ -242,11 +242,15 @@ function create_appgw_ingress() {
   helm repo add application-gateway-kubernetes-ingress ${appgwIngressHelmRepo}
   helm repo update
 
+  # Keep the identity parsing, may be used for CNI network usage
   # {type:UserAssigned,userAssignedIdentities:{/subscriptions/05887623-95c5-4e50-a71c-6e1c738794e2/resourceGroups/haiche-identity/providers/Microsoft.ManagedIdentity/userAssignedIdentities/wls-aks-mvp:{}}}
   # identityId=${identity#*userAssignedIdentities:\{}
   # identityId=${identityId%%:\{\}*}
   # query identity client id
   # identityClientId=$(az identity show --ids ${identityId} -o tsv --query "clientId")
+  
+  # TODO: workaround for MVP demo, only for users with sub owner role.
+  spBase64String=$(az ad sp create-for-rbac --name ${spName} --sdk-auth | base64 -w0)
 
   # generate helm config
   customAppgwHelmConfig=${scriptDir}/agggw-helm-config.yaml
@@ -259,7 +263,6 @@ function create_appgw_ingress() {
   # sed -i -e "s:@INDENTITY_ID@:${identityId}:g" ${customAppgwHelmConfig}
   # sed -i -e "s:@IDENTITY_CLIENT_ID@:${identityClientId}:g" ${customAppgwHelmConfig}
   sed -i -e "s:@SP_ENCODING_CREDENTIALS@:${spBase64String}:g" ${customAppgwHelmConfig}
-  
 
   helm install ingress-azure \
     -f ${customAppgwHelmConfig} \
@@ -285,6 +288,11 @@ function create_appgw_ingress() {
   kubectl apply -f ${appgwIngressSvcConfig}
   validate_status "Create appgw ingress svc."
   waitfor_svc_completed ${ingressSvcName}
+
+  # delete sp
+  spAppId=$(az ad sp list --display-name ${spName} --query "[*].appId" -o tsv)
+  az ad sp delete --id ${spAppId}
+  validate_status "Deleting service principal"
 }
 
 function waitfor_svc_completed() {
@@ -325,8 +333,10 @@ export spBase64String=${11}
 export adminServerName="admin-server"
 export appgwIngressHelmRepo="https://appgwingress.blob.core.windows.net/ingress-azure-helm-package/"
 export clusterName="cluster-1"
+export spName="wls-test-${timestamp}"
 export svcAdminServer="${wlsDomainUID}-${adminServerName}"
 export svcCluster="${wlsDomainUID}-cluster-${clusterName}"
+export timestamp=$(date +%s)
 export wlsDomainNS="${wlsDomainUID}-ns"
 
 echo $lbSvcValues
