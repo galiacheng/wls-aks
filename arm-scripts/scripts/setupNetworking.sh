@@ -271,6 +271,7 @@ function create_appgw_ingress() {
 
   validate_status "Install app gateway ingress controller."
   ret=$(kubectl get pod  | grep "ingress-azure")
+  echo $ret
   if [ -z "${ret}" ];then
     echo_stderr "Failed to install app gateway ingress controller."
     exit 1
