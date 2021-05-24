@@ -333,11 +333,11 @@ export spBase64String=${11}
 export adminServerName="admin-server"
 export appgwIngressHelmRepo="https://appgwingress.blob.core.windows.net/ingress-azure-helm-package/"
 export clusterName="cluster-1"
-export spName="wls-test-${timestamp}"
 export svcAdminServer="${wlsDomainUID}-${adminServerName}"
 export svcCluster="${wlsDomainUID}-cluster-${clusterName}"
 export timestamp=$(date +%s)
 export wlsDomainNS="${wlsDomainUID}-ns"
+export spName="wls-test-${timestamp}"
 
 echo $lbSvcValues
 
