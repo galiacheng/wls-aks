@@ -202,6 +202,8 @@ function install_helm() {
 
 # Create network peers for aks and appgw
 function network_peers_aks_appgw() {
+  # To successfully peer two virtual networks command 'az network vnet peering create' must be called twice with the values
+  # for --vnet-name and --remote-vnet reversed.
   aksLocation=$(az aks show --name ${aksClusterName}  -g ${aksClusterRGName} -o tsv --query "location")
   aksMCRGName="MC_${aksClusterRGName}_${aksClusterName}_${aksLocation}"
   ret=$(az group exists ${aksMCRGName})
@@ -211,11 +213,21 @@ function network_peers_aks_appgw() {
   fi
 
   aksNetWorkId=$( az resource list -g ${aksMCRGName} --resource-type Microsoft.Network/virtualNetworks -o tsv --query '[*].id')
+  aksNetworkName=$( az resource list -g ${aksMCRGName} --resource-type Microsoft.Network/virtualNetworks -o tsv --query '[*].name')
   az network vnet peering create \
     --name aks-appgw-peer \
     --remote-vnet ${aksNetWorkId} \
     --resource-group ${curRGName} \
     --vnet-name ${vnetName} \
+    --allow-vnet-access
+  validate_status "Create network peers for $aksNetWorkId and ${vnetName}."
+
+  appgwNetworkId=$( az resource list -g ${curRGName} --name ${vnetName} -o tsv --query '[*].id')
+  az network vnet peering create \
+    --name aks-appgw-peer \
+    --remote-vnet ${appgwNetworkId} \
+    --resource-group ${aksMCRGName} \
+    --vnet-name ${aksNetworkName} \
     --allow-vnet-access
 
   validate_status "Create network peers for $aksNetWorkId and ${vnetName}."
