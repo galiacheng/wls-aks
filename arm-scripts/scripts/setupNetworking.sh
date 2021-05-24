@@ -200,6 +200,7 @@ function install_helm() {
   validate_status "Finished installing helm."
 }
 
+# Create network peers for aks and appgw
 function network_peers_aks_appgw() {
   aksLocation=$(az aks show --name ${aksClusterName}  -g ${aksClusterRGName} -o tsv --query "location")
   aksMCRGName="MC_${aksClusterRGName}_${aksClusterName}_${aksLocation}"
@@ -224,10 +225,12 @@ function create_appgw_ingress() {
   fi
 
   query_cluster_target_port
+  network_peers_aks_appgw
 
   # create sa and bind cluster-admin role
   kubectl apply -f ${scriptDir}/appgw-ingress-clusterAdmin-roleBinding.yaml
 
+  # Keep the aad pod identity controller installation, may be used for CNI network usage
   # Install aad pod identity controller
   # https://github.com/Azure/aad-pod-identity
   # latestAADPodIdentity=$(curl -s https://api.github.com/repos/Azure/aad-pod-identity/releases/latest  \
