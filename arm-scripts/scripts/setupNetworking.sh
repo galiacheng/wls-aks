@@ -385,3 +385,5 @@ connect_aks_cluster
 create_svc_lb
 
 create_appgw_ingress
+
+exit 1
