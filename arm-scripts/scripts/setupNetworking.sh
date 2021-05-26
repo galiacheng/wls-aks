@@ -166,20 +166,26 @@ EOF
     target=$(cut -d',' -f2 <<<$item)
     if [[ "${target}" == "adminServer" ]];then
       adminServerLBSVCNamePrefix=$(cut -d',' -f1 <<<$item)
-      adminServerLBSVCName="${adminServerLBSVCNamePrefix}-svc-lb"
+      adminServerLBSVCName="${adminServerLBSVCNamePrefix}-svc-lb-admin"
       adminLBPort=$(cut -d',' -f3 <<<$item)
+
       generate_admin_lb_definicion
+
       kubectl apply -f ${scriptDir}/admin-server-lb.yaml
       waitfor_svc_completed ${adminServerLBSVCName}
+
       adminServerEndpoint=$(kubectl get svc ${adminServerLBSVCName} -n ${wlsDomainNS} -o=jsonpath='{.status.loadBalancer.ingress[0].ip}:{.spec.ports[0].port}')
       adminConsoleEndpoint="${adminServerEndpoint}/console"
     else
       clusterLBSVCNamePrefix=$(cut -d',' -f1 <<<$item)
-      clusterLBSVCName="${clusterLBSVCNamePrefix}-svc-lb"
+      clusterLBSVCName="${clusterLBSVCNamePrefix}-svc-lb-cluster"
       clusterLBPort=$(cut -d',' -f3 <<<$item)
+
       generate_cluster_lb_definicion
+
       kubectl apply -f ${scriptDir}/cluster-lb.yaml
       waitfor_svc_completed ${clusterLBSVCName}
+
       clusterEndpoint=$(kubectl get svc ${clusterLBSVCName} -n ${wlsDomainNS} -o=jsonpath='{.status.loadBalancer.ingress[0].ip}:{.spec.ports[0].port}')
     fi
   done
@@ -346,7 +352,10 @@ function output_result() {
   echo ${adminConsoleEndpoint}
   echo ${clusterEndpoint}
 
-  result=$(jq -n -c --arg endpoint $adminConsoleEndpoint '{adminConsoleEndpoint: $endpoint}')
+  result=$(jq -n -c \
+    --arg adminEndpoint $adminConsoleEndpoint \
+    --arg clusterEndpoint $clusterEndpoint \
+    '{adminConsoleEndpoint: $adminEndpoint, clusterEndpoint: $clusterEndpoint}')
   echo "result is: $result"
   echo $result > $AZ_SCRIPTS_OUTPUT_PATH
 }
