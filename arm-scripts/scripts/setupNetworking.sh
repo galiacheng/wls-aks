@@ -166,7 +166,7 @@ EOF
     target=$(cut -d',' -f2 <<<$item)
     if [[ "${target}" == "adminServer" ]];then
       adminServerLBSVCNamePrefix=$(cut -d',' -f1 <<<$item)
-      adminServerLBSVCName="${adminServerLBSVCName}-svc-lb"
+      adminServerLBSVCName="${adminServerLBSVCNamePrefix}-svc-lb"
       adminLBPort=$(cut -d',' -f3 <<<$item)
       generate_admin_lb_definicion
       kubectl apply -f ${scriptDir}/admin-server-lb.yaml
