@@ -206,9 +206,9 @@ function install_helm() {
   helmLatestVersion=${browserURL#*download\/}
   helmLatestVersion=${helmLatestVersion%%\/helm*}
   helmPackageName=helm-${helmLatestVersion}-linux-amd64.tar.gz
-  curl -m 120 -fL https://get.helm.sh/${helmPackageName} -o ~/${helmPackageName}
-  tar -zxvf ~/${helmPackageName}
-  mv ~/linux-amd64/helm /usr/local/bin/helm
+  curl -m 120 -fL https://get.helm.sh/${helmPackageName} -o /tmp/${helmPackageName}
+  tar -zxvf /tmp/${helmPackageName} -C /tmp
+  mv /tmp/linux-amd64/helm /usr/local/bin/helm
   echo "helm version"
   helm version
   validate_status "Finished installing helm."
