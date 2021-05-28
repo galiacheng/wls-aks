@@ -5,65 +5,65 @@ echo "Script  ${0} starts"
 
 #Function to output message to stdout
 function echo_stderr() {
-    echo "$@" >&2
-    echo "$@" >>stdout
+  echo "$@" >&2
+  echo "$@" >>stdout
 }
 
 function echo_stdout() {
-    echo "$@" >&2
-    echo "$@" >>stdout
+  echo "$@" >&2
+  echo "$@" >>stdout
 }
 
 #Function to display usage message
 function usage() {
-    echo_stdout "./setupNetworking.sh <ocrSSOUser> "
-    if [ $1 -eq 1 ]; then
-        exit 1
-    fi
+  echo_stdout "./setupNetworking.sh <ocrSSOUser> "
+  if [ $1 -eq 1 ]; then
+    exit 1
+  fi
 }
 
 # Validate teminal status with $?, exit with exception if errors happen.
 function validate_status() {
-    if [ $? == 1 ]; then
-        echo_stderr "$@"
-        echo_stderr "Errors happen, exit 1."
-        exit 1
-    else
-        echo_stdout "$@"
-    fi
+  if [ $? == 1 ]; then
+    echo_stderr "$@"
+    echo_stderr "Errors happen, exit 1."
+    exit 1
+  else
+    echo_stdout "$@"
+  fi
 }
 
 # Install latest kubectl and helm
 function install_utilities() {
-    if [ -d "apps" ]; then
-        rm apps -f -r
-    fi
+  if [ -d "apps" ]; then
+    rm apps -f -r
+  fi
 
-    mkdir apps
-    cd apps
+  mkdir apps
+  cd apps
 
-    # Install kubectl
-    az aks install-cli
-    echo "kubectl version"
-    ret=$(kubectl --help)
-    validate_status ${ret}
+  # Install kubectl
+  az aks install-cli
+  echo "kubectl version"
+  ret=$(kubectl --help)
+  validate_status ${ret}
 }
 
 #Function to validate input
 function validate_input() {
-    if [[ -z "$aksClusterRGName" || -z "${aksClusterName}" ]]; then
-        echo_stderr "AKS cluster name and resource group name are required. "
-        usage 1
-    fi
+  if [[ -z "$aksClusterRGName" || -z "${aksClusterName}" ]]; then
+    echo_stderr "AKS cluster name and resource group name are required. "
+    usage 1
+  fi
 }
 
 # Connect to AKS cluster
 function connect_aks_cluster() {
-    az aks get-credentials --resource-group ${aksClusterRGName} --name ${aksClusterName} --overwrite-existing
+  az aks get-credentials --resource-group ${aksClusterRGName} --name ${aksClusterName} --overwrite-existing
 }
 
 function generate_admin_lb_definicion() {
-    cat <<EOF >${scriptDir}/admin-server-lb.yaml
+  cat <<EOF >${scriptDir}/admin-server-lb.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -71,15 +71,15 @@ metadata:
   namespace: ${wlsDomainNS}
 EOF
 
-    # to create internal load balancer service
-    if [[ "${enableInternalLB,,}" == "true" ]];then
-        cat <<EOF >>${scriptDir}/admin-server-lb.yaml
+  # to create internal load balancer service
+  if [[ "${enableInternalLB,,}" == "true" ]]; then
+    cat <<EOF >>${scriptDir}/admin-server-lb.yaml
   annotations:
     service.beta.kubernetes.io/azure-load-balancer-internal: "true"
 EOF
-    fi
+  fi
 
-cat <<EOF >>${scriptDir}/admin-server-lb.yaml
+  cat <<EOF >>${scriptDir}/admin-server-lb.yaml
 spec:
   ports:
   - name: default
@@ -95,7 +95,7 @@ EOF
 }
 
 function generate_cluster_lb_definicion() {
-    cat <<EOF >${scriptDir}/cluster-lb.yaml
+  cat <<EOF >${scriptDir}/cluster-lb.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -103,15 +103,15 @@ metadata:
   namespace: ${wlsDomainNS}
 EOF
 
-    # to create internal load balancer service
-    if [[ "${enableInternalLB,,}" == "true" ]];then
-        cat <<EOF >>${scriptDir}/cluster-lb.yaml
+  # to create internal load balancer service
+  if [[ "${enableInternalLB,,}" == "true" ]]; then
+    cat <<EOF >>${scriptDir}/cluster-lb.yaml
   annotations:
     service.beta.kubernetes.io/azure-load-balancer-internal: "true"
 EOF
-    fi
+  fi
 
-    cat <<EOF >>${scriptDir}/cluster-lb.yaml
+  cat <<EOF >>${scriptDir}/cluster-lb.yaml
 spec:
   ports:
   - name: default
@@ -149,22 +149,22 @@ function create_svc_lb() {
 
   # Parse lb svc input values
   # Generate valid json
-  ret=$(echo $lbSvcValues | sed  "s/\:/\\\"\:\\\"/g" \
-    | sed  "s/{/{\"/g" \
-    | sed  "s/}/\"}/g" \
-    | sed  "s/,/\",\"/g" \
-    | sed "s/}\",\"{/},{/g" \
-    | tr -d \(\))
+  ret=$(echo $lbSvcValues | sed "s/\:/\\\"\:\\\"/g" |
+    sed "s/{/{\"/g" |
+    sed "s/}/\"}/g" |
+    sed "s/,/\",\"/g" |
+    sed "s/}\",\"{/},{/g" |
+    tr -d \(\))
 
   cat <<EOF >${scriptDir}/lbConfiguration.json
 ${ret}
 EOF
 
-  array=$(jq  -r '.[] | "\(.colName),\(.colTarget),\(.colPort)"' ${scriptDir}/lbConfiguration.json)
+  array=$(jq -r '.[] | "\(.colName),\(.colTarget),\(.colPort)"' ${scriptDir}/lbConfiguration.json)
   for item in $array; do
     # LB config for admin-server
     target=$(cut -d',' -f2 <<<$item)
-    if [[ "${target}" == "adminServer" ]];then
+    if [[ "${target}" == "adminServer" ]]; then
       adminServerLBSVCNamePrefix=$(cut -d',' -f1 <<<$item)
       adminServerLBSVCName="${adminServerLBSVCNamePrefix}-svc-lb-admin"
       adminLBPort=$(cut -d',' -f3 <<<$item)
@@ -179,7 +179,7 @@ EOF
 
       create_dns_A_record "${adminServerEndpoint%%:*}" ${dnsAdminLabel}
 
-      if [ "${enableCustomDNSAlias,,}" == "true" ];then
+      if [ "${enableCustomDNSAlias,,}" == "true" ]; then
         adminConsoleEndpoint="${dnsAdminLabel}.${dnsZoneName}:${adminServerEndpoint#*:}/console"
       fi
     else
@@ -193,24 +193,22 @@ EOF
       waitfor_svc_completed ${clusterLBSVCName}
 
       clusterEndpoint=$(kubectl get svc ${clusterLBSVCName} -n ${wlsDomainNS} -o=jsonpath='{.status.loadBalancer.ingress[0].ip}:{.spec.ports[0].port}')
-      
+
       create_dns_A_record "${clusterEndpoint%%:*}" ${dnsClusterLabel}
 
-      if [ "${enableCustomDNSAlias,,}" == "true" ];then
+      if [ "${enableCustomDNSAlias,,}" == "true" ]; then
         adminConsoleEndpoint="${dnsClusterLabel}.${dnsZoneName}:${clusterEndpoint#*:}/"
       fi
     fi
   done
-
-  output_result
 }
 
 function install_helm() {
   # Install helm
-  browserURL=$(curl -s https://api.github.com/repos/helm/helm/releases/latest  \
-  | grep "browser_download_url.*linux-amd64.tar.gz.asc" \
-  | cut -d : -f 2,3 \
-  | tr -d \")
+  browserURL=$(curl -s https://api.github.com/repos/helm/helm/releases/latest |
+    grep "browser_download_url.*linux-amd64.tar.gz.asc" |
+    cut -d : -f 2,3 |
+    tr -d \")
   helmLatestVersion=${browserURL#*download\/}
   helmLatestVersion=${helmLatestVersion%%\/helm*}
   helmPackageName=helm-${helmLatestVersion}-linux-amd64.tar.gz
@@ -226,16 +224,16 @@ function install_helm() {
 function network_peers_aks_appgw() {
   # To successfully peer two virtual networks command 'az network vnet peering create' must be called twice with the values
   # for --vnet-name and --remote-vnet reversed.
-  aksLocation=$(az aks show --name ${aksClusterName}  -g ${aksClusterRGName} -o tsv --query "location")
+  aksLocation=$(az aks show --name ${aksClusterName} -g ${aksClusterRGName} -o tsv --query "location")
   aksMCRGName="MC_${aksClusterRGName}_${aksClusterName}_${aksLocation}"
   ret=$(az group exists ${aksMCRGName})
-  if [ "${ret,,}" == "false" ];then
+  if [ "${ret,,}" == "false" ]; then
     echo_stderr "AKS namaged resource group ${aksMCRGName} does not exist."
     exit 1
   fi
 
-  aksNetWorkId=$( az resource list -g ${aksMCRGName} --resource-type Microsoft.Network/virtualNetworks -o tsv --query '[*].id')
-  aksNetworkName=$( az resource list -g ${aksMCRGName} --resource-type Microsoft.Network/virtualNetworks -o tsv --query '[*].name')
+  aksNetWorkId=$(az resource list -g ${aksMCRGName} --resource-type Microsoft.Network/virtualNetworks -o tsv --query '[*].id')
+  aksNetworkName=$(az resource list -g ${aksMCRGName} --resource-type Microsoft.Network/virtualNetworks -o tsv --query '[*].name')
   az network vnet peering create \
     --name aks-appgw-peer \
     --remote-vnet ${aksNetWorkId} \
@@ -244,7 +242,7 @@ function network_peers_aks_appgw() {
     --allow-vnet-access
   validate_status "Create network peers for $aksNetWorkId and ${vnetName}."
 
-  appgwNetworkId=$( az resource list -g ${curRGName} --name ${vnetName} -o tsv --query '[*].id')
+  appgwNetworkId=$(az resource list -g ${curRGName} --name ${vnetName} -o tsv --query '[*].id')
   az network vnet peering create \
     --name aks-appgw-peer \
     --remote-vnet ${appgwNetworkId} \
@@ -256,7 +254,7 @@ function network_peers_aks_appgw() {
 }
 
 function create_appgw_ingress() {
-  if [[  "${enableAppGWIngress,,}" != "true"  ]];then
+  if [[ "${enableAppGWIngress,,}" != "true" ]]; then
     return
   fi
 
@@ -306,24 +304,24 @@ function create_appgw_ingress() {
     --version 1.4.0
 
   validate_status "Install app gateway ingress controller."
-  
+
   attempts=0
   podState="running"
   while [ ! "$podState" == "completed" ] && [ $attempts -lt 5 ]; do
-      podState="completed"
-      attempts=$((attempts + 1))
-      echo Waiting for Pod running...${attempts}
-      sleep 30
+    podState="completed"
+    attempts=$((attempts + 1))
+    echo Waiting for Pod running...${attempts}
+    sleep 30
 
-      ret=$(kubectl get pod  | grep "ingress-azure")
-      if [ -z "${ret}" ]; then
-        podState="running"
+    ret=$(kubectl get pod | grep "ingress-azure")
+    if [ -z "${ret}" ]; then
+      podState="running"
 
-        if [ $attempts -ge 5 ]; then
-          echo_stderr "Failed to install app gateway ingress controller."
-          exit 1
-        fi
+      if [ $attempts -ge 5 ]; then
+        echo_stderr "Failed to install app gateway ingress controller."
+        exit 1
       fi
+    fi
   done
 
   # generate ingress svc config
@@ -348,16 +346,16 @@ function waitfor_svc_completed() {
   attempts=0
   svcState="running"
   while [ ! "$svcState" == "completed" ] && [ $attempts -lt 10 ]; do
-      svcState="completed"
-      attempts=$((attempts + 1))
-      echo Waiting for job completed...${attempts}
-      sleep 30
+    svcState="completed"
+    attempts=$((attempts + 1))
+    echo Waiting for job completed...${attempts}
+    sleep 30
 
-      ret=$(kubectl get svc ${svcName} -n ${wlsDomainNS} \
-        | grep -c "Running")
-      if [ -z "${ret}" ]; then
-        svcState="running"
-      fi
+    ret=$(kubectl get svc ${svcName} -n ${wlsDomainNS} |
+      grep -c "Running")
+    if [ -z "${ret}" ]; then
+      svcState="running"
+    fi
   done
 }
 
@@ -370,12 +368,12 @@ function output_result() {
     --arg clusterEndpoint $clusterEndpoint \
     '{adminConsoleEndpoint: $adminEndpoint, clusterEndpoint: $clusterEndpoint}')
   echo "result is: $result"
-  echo $result > $AZ_SCRIPTS_OUTPUT_PATH
+  echo $result >$AZ_SCRIPTS_OUTPUT_PATH
 }
 
 # create dns alias for lb service
 function create_dns_A_record() {
-  if [ "${enableCustomDNSAlias,,}" == "true" ];then
+  if [ "${enableCustomDNSAlias,,}" == "true" ]; then
     ipv4Addr=$1
     label=$2
     az network dns record-set a add-record --ipv4-address ${ipv4Addr} \
@@ -387,7 +385,7 @@ function create_dns_A_record() {
 
 # create dns alias for app gateway
 function create_dns_CNAME_record() {
-  if [ "${enableCustomDNSAlias,,}" == "true" ];then
+  if [ "${enableCustomDNSAlias,,}" == "true" ]; then
 
     az network dns record-set cname create \
       -g ${dnsRGName} \
@@ -442,3 +440,5 @@ connect_aks_cluster
 create_svc_lb
 
 create_appgw_ingress
+
+output_result
