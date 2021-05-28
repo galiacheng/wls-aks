@@ -176,6 +176,8 @@ EOF
 
       adminServerEndpoint=$(kubectl get svc ${adminServerLBSVCName} -n ${wlsDomainNS} -o=jsonpath='{.status.loadBalancer.ingress[0].ip}:{.spec.ports[0].port}')
       adminConsoleEndpoint="${adminServerEndpoint}/console"
+
+      create_dns_A_record "${adminServerEndpoint%%:*}" ${dnsAdminLabel}
     else
       clusterLBSVCNamePrefix=$(cut -d',' -f1 <<<$item)
       clusterLBSVCName="${clusterLBSVCNamePrefix}-svc-lb-cluster"
@@ -187,6 +189,8 @@ EOF
       waitfor_svc_completed ${clusterLBSVCName}
 
       clusterEndpoint=$(kubectl get svc ${clusterLBSVCName} -n ${wlsDomainNS} -o=jsonpath='{.status.loadBalancer.ingress[0].ip}:{.spec.ports[0].port}')
+      
+      create_dns_A_record "${clusterEndpoint%%:*}" ${dnsClusterLabel}
     fi
   done
 
@@ -202,10 +206,9 @@ function install_helm() {
   helmLatestVersion=${browserURL#*download\/}
   helmLatestVersion=${helmLatestVersion%%\/helm*}
   helmPackageName=helm-${helmLatestVersion}-linux-amd64.tar.gz
-  curl -LO -s https://get.helm.sh/${helmPackageName}
-  tar -zxvf ${helmPackageName}
-  chmod +x linux-amd64/helm
-  mv linux-amd64/helm /usr/local/bin/helm
+  curl -m 120 -fL https://get.helm.sh/${helmPackageName} -o ~/${helmPackageName}
+  tar -zxvf ~/${helmPackageName}
+  mv ~/linux-amd64/helm /usr/local/bin/helm
   echo "helm version"
   helm version
   validate_status "Finished installing helm."
@@ -327,6 +330,8 @@ function create_appgw_ingress() {
   kubectl apply -f ${appgwIngressSvcConfig}
   validate_status "Create appgw ingress svc."
   waitfor_svc_completed ${ingressSvcName}
+
+  create_dns_CNAME_record
 }
 
 function waitfor_svc_completed() {
@@ -360,6 +365,35 @@ function output_result() {
   echo $result > $AZ_SCRIPTS_OUTPUT_PATH
 }
 
+# create dns alias for lb service
+function create_dns_A_record() {
+  if [ "${enableCustomDNSAlias,,}" == "true" ];then
+    ipv4Addr=$1
+    label=$2
+    az network dns record-set a add-record --ipv4-address ${ipv4Addr} \
+      --record-set-name ${label} \
+      --resource-group ${dnsRGName} \
+      --zone-name ${dnsZoneName}
+  fi
+}
+
+# create dns alias for app gateway
+function create_dns_CNAME_record() {
+  if [ "${enableCustomDNSAlias,,}" == "true" ];then
+
+    az network dns record-set cname create \
+      -g ${dnsRGName} \
+      -z ${dnsZoneName} \
+      -n ${dnsClusterLabel}
+
+    az network dns record-set cname set-record \
+      -g ${dnsRGName} \
+      -z ${dnsZoneName} \
+      --cname ${appgwAlias} \
+      --record-set-name ${dnsClusterLabel}
+  fi
+}
+
 # Main script
 export script="${BASH_SOURCE[0]}"
 export scriptDir="$(cd "$(dirname "${script}")" && pwd)"
@@ -375,6 +409,12 @@ export curRGName=${8}
 export appgwName=${9}
 export vnetName=${10}
 export spBase64String=${11}
+export enableCustomDNSAlias=${12}
+export dnsRGName=${13}
+export dnsZoneName=${14}
+export dnsAdminLabel=${15}
+export dnsClusterLabel=${16}
+export appgwAlias=${17}
 
 export adminServerName="admin-server"
 export appgwIngressHelmRepo="https://appgwingress.blob.core.windows.net/ingress-azure-helm-package/"
