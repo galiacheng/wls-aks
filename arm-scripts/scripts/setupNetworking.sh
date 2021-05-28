@@ -178,6 +178,10 @@ EOF
       adminConsoleEndpoint="${adminServerEndpoint}/console"
 
       create_dns_A_record "${adminServerEndpoint%%:*}" ${dnsAdminLabel}
+
+      if [ "${enableCustomDNSAlias,,}" == "true" ];then
+        adminConsoleEndpoint="${dnsAdminLabel}.${dnsZoneName}:${adminServerEndpoint#*:}/console"
+      fi
     else
       clusterLBSVCNamePrefix=$(cut -d',' -f1 <<<$item)
       clusterLBSVCName="${clusterLBSVCNamePrefix}-svc-lb-cluster"
@@ -191,6 +195,10 @@ EOF
       clusterEndpoint=$(kubectl get svc ${clusterLBSVCName} -n ${wlsDomainNS} -o=jsonpath='{.status.loadBalancer.ingress[0].ip}:{.spec.ports[0].port}')
       
       create_dns_A_record "${clusterEndpoint%%:*}" ${dnsClusterLabel}
+
+      if [ "${enableCustomDNSAlias,,}" == "true" ];then
+        adminConsoleEndpoint="${dnsClusterLabel}.${dnsZoneName}:${clusterEndpoint#*:}/"
+      fi
     fi
   done
 
