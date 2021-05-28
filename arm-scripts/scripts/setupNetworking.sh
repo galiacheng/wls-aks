@@ -197,7 +197,7 @@ EOF
       create_dns_A_record "${clusterEndpoint%%:*}" ${dnsClusterLabel}
 
       if [ "${enableCustomDNSAlias,,}" == "true" ]; then
-        adminConsoleEndpoint="${dnsClusterLabel}.${dnsZoneName}:${clusterEndpoint#*:}/"
+        clusterEndpoint="${dnsClusterLabel}.${dnsZoneName}:${clusterEndpoint#*:}/"
       fi
     fi
   done
@@ -423,8 +423,10 @@ export dnsClusterLabel=${16}
 export appgwAlias=${17}
 
 export adminServerName="admin-server"
+export adminConsoleEndpoint=""
 export appgwIngressHelmRepo="https://appgwingress.blob.core.windows.net/ingress-azure-helm-package/"
 export clusterName="cluster-1"
+export clusterEndpoint=""
 export svcAdminServer="${wlsDomainUID}-${adminServerName}"
 export svcCluster="${wlsDomainUID}-cluster-${clusterName}"
 export wlsDomainNS="${wlsDomainUID}-ns"
