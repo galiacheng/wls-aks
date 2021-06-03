@@ -55,6 +55,76 @@ function validate_input() {
     echo_stderr "AKS cluster name and resource group name are required. "
     usage 1
   fi
+
+  if [[ -z "$wlsDomainName" || -z "${wlsDomainUID}" ]]; then
+    echo_stderr "WebLogic domain name and WebLogic domain UID are required. "
+    usage 1
+  fi
+
+  if [ -z "$lbSvcValues" ]; then
+    echo_stderr "lbSvcValues is required. "
+    usage 1
+  fi
+
+  if [ -z "$enableAppGWIngress" ]; then
+    echo_stderr "enableAppGWIngress is required. "
+    usage 1
+  fi
+
+  if [ -z "$subID" ]; then
+    echo_stderr "subID is required. "
+    usage 1
+  fi
+
+  if [ -z "$curRGName" ]; then
+    echo_stderr "curRGName is required. "
+    usage 1
+  fi
+
+  if [ -z "$appgwName" ]; then
+    echo_stderr "appgwName is required. "
+    usage 1
+  fi
+
+  if [ -z "$vnetName" ]; then
+    echo_stderr "vnetName is required. "
+    usage 1
+  fi
+
+  if [ -z "$spBase64String" ]; then
+    echo_stderr "spBase64String is required. "
+    usage 1
+  fi
+
+  if [ -z "$appgwForAdminServer" ]; then
+    echo_stderr "appgwForAdminServer is required. "
+    usage 1
+  fi
+
+  if [ -z "$enableCustomDNSAlias" ]; then
+    echo_stderr "enableCustomDNSAlias is required. "
+    usage 1
+  fi
+
+  if [[ -z "$dnsRGName" || -z "${dnsZoneName}" ]]; then
+    echo_stderr "dnsZoneName and dnsRGName are required. "
+    usage 1
+  fi
+
+  if [ -z "$dnsAdminLabel" ]; then
+    echo_stderr "dnsAdminLabel is required. "
+    usage 1
+  fi
+
+  if [ -z "$dnsClusterLabel" ]; then
+    echo_stderr "dnsClusterLabel is required. "
+    usage 1
+  fi
+
+  if [ -z "$appgwAlias" ]; then
+    echo_stderr "appgwAlias is required. "
+    usage 1
+  fi
 }
 
 # Connect to AKS cluster
@@ -324,10 +394,11 @@ function create_appgw_ingress() {
     fi
   done
 
-  # generate ingress svc config
-  appgwIngressSvcConfig=${scriptDir}/azure-ingress-appgateway.yaml
+  # generate ingress svc config for cluster
+  appgwIngressSvcConfig=${scriptDir}/azure-ingress-appgateway-cluster.yaml
   cp ${scriptDir}/azure-ingress-appgateway.yaml.template ${appgwIngressSvcConfig}
-  ingressSvcName="${wlsDomainUID}-appgw-ingress-svc"
+  ingressSvcName="${wlsDomainUID}-cluster-appgw-ingress-svc"
+  sed -i -e "s:@PATH@:\/:g" ${appgwIngressSvcConfig}
   sed -i -e "s:@INGRESS_NAME@:${ingressSvcName}:g" ${appgwIngressSvcConfig}
   sed -i -e "s:@NAMESPACE@:${wlsDomainNS}:g" ${appgwIngressSvcConfig}
   sed -i -e "s:@CLUSTER_SERVICE_NAME@:${svcCluster}:g" ${appgwIngressSvcConfig}
@@ -336,6 +407,22 @@ function create_appgw_ingress() {
   kubectl apply -f ${appgwIngressSvcConfig}
   validate_status "Create appgw ingress svc."
   waitfor_svc_completed ${ingressSvcName}
+
+  if [[ ${appgwForAdminServer,,} == "true" ]]; then
+    # generate ingress svc config for cluster
+    appgwIngressSvcConfig=${scriptDir}/azure-ingress-appgateway-admin.yaml
+    cp ${scriptDir}/azure-ingress-appgateway.yaml.template ${appgwIngressSvcConfig}
+    ingressSvcName="${wlsDomainUID}-admin-appgw-ingress-svc"
+    sed -i -e "s:@PATH@:\/console*:g" ${appgwIngressSvcConfig}
+    sed -i -e "s:@INGRESS_NAME@:${ingressSvcName}:g" ${appgwIngressSvcConfig}
+    sed -i -e "s:@NAMESPACE@:${wlsDomainNS}:g" ${appgwIngressSvcConfig}
+    sed -i -e "s:@CLUSTER_SERVICE_NAME@:${svcAdminServer}:g" ${appgwIngressSvcConfig}
+    sed -i -e "s:@TARGET_PORT@:${adminTargetPort}:g" ${appgwIngressSvcConfig}
+
+    kubectl apply -f ${appgwIngressSvcConfig}
+    validate_status "Create appgw ingress svc."
+    waitfor_svc_completed ${ingressSvcName}
+  fi
 
   create_dns_CNAME_record
 }
@@ -397,6 +484,19 @@ function create_dns_CNAME_record() {
       -z ${dnsZoneName} \
       --cname ${appgwAlias} \
       --record-set-name ${dnsClusterLabel}
+
+    if [[ ${appgwForAdminServer,,} == "true" ]]; then
+      az network dns record-set cname create \
+        -g ${dnsRGName} \
+        -z ${dnsZoneName} \
+        -n ${dnsAdminLabel}
+
+      az network dns record-set cname set-record \
+        -g ${dnsRGName} \
+        -z ${dnsZoneName} \
+        --cname ${appgwAlias} \
+        --record-set-name ${dnsAdminLabel}
+    fi
   fi
 }
 
@@ -415,12 +515,13 @@ export curRGName=${8}
 export appgwName=${9}
 export vnetName=${10}
 export spBase64String=${11}
-export enableCustomDNSAlias=${12}
-export dnsRGName=${13}
-export dnsZoneName=${14}
-export dnsAdminLabel=${15}
-export dnsClusterLabel=${16}
-export appgwAlias=${17}
+export appgwForAdminServer=${12}
+export enableCustomDNSAlias=${13}
+export dnsRGName=${14}
+export dnsZoneName=${15}
+export dnsAdminLabel=${16}
+export dnsClusterLabel=${17}
+export appgwAlias=${18}
 
 export adminServerName="admin-server"
 export adminConsoleEndpoint="null"

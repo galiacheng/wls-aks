@@ -12,7 +12,7 @@ spec:
   rules:
     - http:
         paths:
-          - path: /
+          - path: @PATH@
             pathType: Prefix
             backend:
               service:
