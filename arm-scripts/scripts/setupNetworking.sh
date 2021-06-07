@@ -328,6 +328,7 @@ function create_appgw_ingress() {
     return
   fi
 
+  query_admin_target_port
   query_cluster_target_port
   network_peers_aks_appgw
 
