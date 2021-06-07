@@ -14,23 +14,21 @@ function echo_stdout() {
   echo "$@" >>stdout
 }
 
-#Function to display usage message
-function usage() {
-  echo_stdout "./setupNetworking.sh <ocrSSOUser> "
-  if [ $1 -eq 1 ]; then
-    exit 1
-  fi
-}
-
-# Validate teminal status with $?, exit with exception if errors happen.
-function validate_status() {
-  if [ $? == 1 ]; then
-    echo_stderr "$@"
-    echo_stderr "Errors happen, exit 1."
-    exit 1
-  else
-    echo_stdout "$@"
-  fi
+function install_helm() {
+  # Install helm
+  browserURL=$(curl -s https://api.github.com/repos/helm/helm/releases/latest |
+    grep "browser_download_url.*linux-amd64.tar.gz.asc" |
+    cut -d : -f 2,3 |
+    tr -d \")
+  helmLatestVersion=${browserURL#*download\/}
+  helmLatestVersion=${helmLatestVersion%%\/helm*}
+  helmPackageName=helm-${helmLatestVersion}-linux-amd64.tar.gz
+  curl -m 120 -fL https://get.helm.sh/${helmPackageName} -o /tmp/${helmPackageName}
+  tar -zxvf /tmp/${helmPackageName} -C /tmp
+  mv /tmp/linux-amd64/helm /usr/local/bin/helm
+  echo "helm version"
+  helm version
+  validate_status "Finished installing helm."
 }
 
 # Install latest kubectl and helm
@@ -47,6 +45,57 @@ function install_utilities() {
   echo "kubectl version"
   ret=$(kubectl --help)
   validate_status ${ret}
+}
+
+#Output value to deployment scripts
+function output_result() {
+  echo ${adminConsoleEndpoint}
+  echo ${clusterEndpoint}
+
+  result=$(jq -n -c \
+    --arg adminEndpoint $adminConsoleEndpoint \
+    --arg clusterEndpoint $clusterEndpoint \
+    '{adminConsoleEndpoint: $adminEndpoint, clusterEndpoint: $clusterEndpoint}')
+  echo "result is: $result"
+  echo $result >$AZ_SCRIPTS_OUTPUT_PATH
+}
+
+#Function to display usage message
+function usage() {
+  echo_stdout "./setupNetworking.sh <ocrSSOUser> "
+  if [ $1 -eq 1 ]; then
+    exit 1
+  fi
+}
+
+#Validate teminal status with $?, exit with exception if errors happen.
+function validate_status() {
+  if [ $? == 1 ]; then
+    echo_stderr "$@"
+    echo_stderr "Errors happen, exit 1."
+    exit 1
+  else
+    echo_stdout "$@"
+  fi
+}
+
+function waitfor_svc_completed() {
+  svcName=$1
+
+  attempts=0
+  svcState="running"
+  while [ ! "$svcState" == "completed" ] && [ $attempts -lt ${perfSVCAttemps} ]; do
+    svcState="completed"
+    attempts=$((attempts + 1))
+    echo Waiting for job completed...${attempts}
+    sleep ${perfRetryInterval}
+
+    ret=$(kubectl get svc ${svcName} -n ${wlsDomainNS} |
+      grep -c "Running")
+    if [ -z "${ret}" ]; then
+      svcState="running"
+    fi
+  done
 }
 
 #Function to validate input
@@ -127,11 +176,6 @@ function validate_input() {
   fi
 }
 
-# Connect to AKS cluster
-function connect_aks_cluster() {
-  az aks get-credentials --resource-group ${aksClusterRGName} --name ${aksClusterName} --overwrite-existing
-}
-
 function generate_admin_lb_definicion() {
   cat <<EOF >${scriptDir}/admin-server-lb.yaml
 apiVersion: v1
@@ -208,6 +252,53 @@ function query_cluster_target_port() {
   echo "Target port of ${clusterName}: ${clusterTargetPort}"
 }
 
+# Connect to AKS cluster
+function connect_aks_cluster() {
+  az aks get-credentials --resource-group ${aksClusterRGName} --name ${aksClusterName} --overwrite-existing
+}
+
+# create dns alias for lb service
+function create_dns_A_record() {
+  if [ "${enableCustomDNSAlias,,}" == "true" ]; then
+    ipv4Addr=$1
+    label=$2
+    az network dns record-set a add-record --ipv4-address ${ipv4Addr} \
+      --record-set-name ${label} \
+      --resource-group ${dnsRGName} \
+      --zone-name ${dnsZoneName}
+  fi
+}
+
+# create dns alias for app gateway
+function create_dns_CNAME_record() {
+  if [ "${enableCustomDNSAlias,,}" == "true" ]; then
+
+    az network dns record-set cname create \
+      -g ${dnsRGName} \
+      -z ${dnsZoneName} \
+      -n ${dnsClusterLabel}
+
+    az network dns record-set cname set-record \
+      -g ${dnsRGName} \
+      -z ${dnsZoneName} \
+      --cname ${appgwAlias} \
+      --record-set-name ${dnsClusterLabel}
+
+    if [[ ${appgwForAdminServer,,} == "true" ]]; then
+      az network dns record-set cname create \
+        -g ${dnsRGName} \
+        -z ${dnsZoneName} \
+        -n ${dnsAdminLabel}
+
+      az network dns record-set cname set-record \
+        -g ${dnsRGName} \
+        -z ${dnsZoneName} \
+        --cname ${appgwAlias} \
+        --record-set-name ${dnsAdminLabel}
+    fi
+  fi
+}
+
 function create_svc_lb() {
   # No lb svc inputs
   if [[ "${lbSvcValues}" == "[]" ]]; then
@@ -271,23 +362,6 @@ EOF
       fi
     fi
   done
-}
-
-function install_helm() {
-  # Install helm
-  browserURL=$(curl -s https://api.github.com/repos/helm/helm/releases/latest |
-    grep "browser_download_url.*linux-amd64.tar.gz.asc" |
-    cut -d : -f 2,3 |
-    tr -d \")
-  helmLatestVersion=${browserURL#*download\/}
-  helmLatestVersion=${helmLatestVersion%%\/helm*}
-  helmPackageName=helm-${helmLatestVersion}-linux-amd64.tar.gz
-  curl -m 120 -fL https://get.helm.sh/${helmPackageName} -o /tmp/${helmPackageName}
-  tar -zxvf /tmp/${helmPackageName} -C /tmp
-  mv /tmp/linux-amd64/helm /usr/local/bin/helm
-  echo "helm version"
-  helm version
-  validate_status "Finished installing helm."
 }
 
 # Create network peers for aks and appgw
@@ -358,8 +432,8 @@ function create_appgw_ingress() {
   # identityClientId=$(az identity show --ids ${identityId} -o tsv --query "clientId")
 
   # generate helm config
-  customAppgwHelmConfig=${scriptDir}/agggw-helm-config.yaml
-  cp ${scriptDir}/agggw-helm-config.yaml.template ${customAppgwHelmConfig}
+  customAppgwHelmConfig=${scriptDir}/appgw-helm-config.yaml
+  cp ${scriptDir}/appgw-helm-config.yaml.template ${customAppgwHelmConfig}
   subID=${subID#*\/subscriptions\/}
   sed -i -e "s:@SUB_ID@:${subID}:g" ${customAppgwHelmConfig}
   sed -i -e "s:@APPGW_RG_NAME@:${curRGName}:g" ${customAppgwHelmConfig}
@@ -372,23 +446,23 @@ function create_appgw_ingress() {
   helm install ingress-azure \
     -f ${customAppgwHelmConfig} \
     application-gateway-kubernetes-ingress/ingress-azure \
-    --version 1.4.0
+    --version ${azureAppgwIngressVersion}
 
   validate_status "Install app gateway ingress controller."
 
   attempts=0
   podState="running"
-  while [ ! "$podState" == "completed" ] && [ $attempts -lt 5 ]; do
+  while [ ! "$podState" == "completed" ] && [ $attempts -lt ${perfPodAttemps} ]; do
     podState="completed"
     attempts=$((attempts + 1))
     echo Waiting for Pod running...${attempts}
-    sleep 30
+    sleep ${perfRetryInterval}
 
     ret=$(kubectl get pod | grep "ingress-azure")
     if [ -z "${ret}" ]; then
       podState="running"
 
-      if [ $attempts -ge 5 ]; then
+      if [ $attempts -ge ${perfPodAttemps} ]; then
         echo_stderr "Failed to install app gateway ingress controller."
         exit 1
       fi
@@ -428,79 +502,6 @@ function create_appgw_ingress() {
   create_dns_CNAME_record
 }
 
-function waitfor_svc_completed() {
-  svcName=$1
-
-  attempts=0
-  svcState="running"
-  while [ ! "$svcState" == "completed" ] && [ $attempts -lt 10 ]; do
-    svcState="completed"
-    attempts=$((attempts + 1))
-    echo Waiting for job completed...${attempts}
-    sleep 30
-
-    ret=$(kubectl get svc ${svcName} -n ${wlsDomainNS} |
-      grep -c "Running")
-    if [ -z "${ret}" ]; then
-      svcState="running"
-    fi
-  done
-}
-
-function output_result() {
-  echo ${adminConsoleEndpoint}
-  echo ${clusterEndpoint}
-
-  result=$(jq -n -c \
-    --arg adminEndpoint $adminConsoleEndpoint \
-    --arg clusterEndpoint $clusterEndpoint \
-    '{adminConsoleEndpoint: $adminEndpoint, clusterEndpoint: $clusterEndpoint}')
-  echo "result is: $result"
-  echo $result >$AZ_SCRIPTS_OUTPUT_PATH
-}
-
-# create dns alias for lb service
-function create_dns_A_record() {
-  if [ "${enableCustomDNSAlias,,}" == "true" ]; then
-    ipv4Addr=$1
-    label=$2
-    az network dns record-set a add-record --ipv4-address ${ipv4Addr} \
-      --record-set-name ${label} \
-      --resource-group ${dnsRGName} \
-      --zone-name ${dnsZoneName}
-  fi
-}
-
-# create dns alias for app gateway
-function create_dns_CNAME_record() {
-  if [ "${enableCustomDNSAlias,,}" == "true" ]; then
-
-    az network dns record-set cname create \
-      -g ${dnsRGName} \
-      -z ${dnsZoneName} \
-      -n ${dnsClusterLabel}
-
-    az network dns record-set cname set-record \
-      -g ${dnsRGName} \
-      -z ${dnsZoneName} \
-      --cname ${appgwAlias} \
-      --record-set-name ${dnsClusterLabel}
-
-    if [[ ${appgwForAdminServer,,} == "true" ]]; then
-      az network dns record-set cname create \
-        -g ${dnsRGName} \
-        -z ${dnsZoneName} \
-        -n ${dnsAdminLabel}
-
-      az network dns record-set cname set-record \
-        -g ${dnsRGName} \
-        -z ${dnsZoneName} \
-        --cname ${appgwAlias} \
-        --record-set-name ${dnsAdminLabel}
-    fi
-  fi
-}
-
 # Main script
 export script="${BASH_SOURCE[0]}"
 export scriptDir="$(cd "$(dirname "${script}")" && pwd)"
@@ -529,6 +530,10 @@ export adminConsoleEndpoint="null"
 export appgwIngressHelmRepo="https://appgwingress.blob.core.windows.net/ingress-azure-helm-package/"
 export clusterName="cluster-1"
 export clusterEndpoint="null"
+export azureAppgwIngressVersion="1.4.0"
+export perfRetryInterval=30 # seconds
+export perfPodAttemps=5
+export perfSVCAttemps=10
 export svcAdminServer="${wlsDomainUID}-${adminServerName}"
 export svcCluster="${wlsDomainUID}-cluster-${clusterName}"
 export wlsDomainNS="${wlsDomainUID}-ns"
