@@ -240,8 +240,8 @@ export wlsClusterSize=$9
 
 export acrImagePath="$azureACRServer/aks-wls-images:${imageTag}"
 export ocrLoginServer="container-registry.oracle.com"
-export wdtDownloadURL="https://github.com/oracle/weblogic-deploy-tooling/releases/download/release-1.9.7/weblogic-deploy.zip"
-export witDownloadURL="https://github.com/oracle/weblogic-image-tool/releases/download/release-1.9.11/imagetool.zip"
+export wdtDownloadURL="https://github.com/oracle/weblogic-deploy-tooling/releases/download/release-1.9.14/weblogic-deploy.zip"
+export witDownloadURL="https://github.com/oracle/weblogic-image-tool/releases/download/release-1.9.12/imagetool.zip"
 
 validate_inputs
 

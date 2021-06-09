@@ -436,6 +436,25 @@ function cleanup_vm() {
     az resource delete --verbose --ids ${vmResourceIdS}
 }
 
+function query_output_aks_outbound_ip() {
+    aksMCRGName=$(az aks show -n $aksClusterName -g $aksClusterRGName -o tsv --query "nodeResourceGroup")
+    publicIPs=$(az resource list -g ${aksMCRGName} --resource-type Microsoft.Network/publicIPAddresses --query '[*].id')
+    ipArray=$( echo $publicIP | tr -d \[\]\" | tr "," "\n")
+    for item in $ipArray;
+    do
+        ret=$(az tag list --resource-id $item | grep "aks-slb-managed-outbound-ip")
+        if [ -n "$ret" ];then
+            outboundIP=$(az resource show --ids ${item} --query properties.ipAddress -o tsv)
+            result=$(jq -n -c \
+                --arg aksOutboundIP $outboundIP
+                '{aksOutboundIP: $aksOutboundIP')
+            echo "result is: $result"
+            echo $result >$AZ_SCRIPTS_OUTPUT_PATH
+            break
+        fi
+    done
+}
+
 # Main script
 export script="${BASH_SOURCE[0]}"
 export scriptDir="$(cd "$(dirname "${script}")" && pwd)"
@@ -487,5 +506,7 @@ connect_aks_cluster
 install_wls_operator
 
 setup_wls_domain
+
+query_output_aks_outbound_ip
 
 exit $exitCode

@@ -62,7 +62,7 @@ function output_result() {
 
 #Function to display usage message
 function usage() {
-  echo_stdout "./setupNetworking.sh <ocrSSOUser> "
+  echo_stdout "./setupNetworking.sh <aksClusterRGName> <aksClusterName> <wlsDomainName> <wlsDomainUID> <lbSvcValues> <enableAppGWIngress> <subID> <curRGName> <appgwName> <vnetName> <spBase64String> <appgwForAdminServer> <enableCustomDNSAlias> <dnsRGName> <dnsZoneName> <dnsAdminLabel> <dnsClusterLabel> <appgwAlias> <enableInternalLB> "
   if [ $1 -eq 1 ]; then
     exit 1
   fi
@@ -172,6 +172,11 @@ function validate_input() {
 
   if [ -z "$appgwAlias" ]; then
     echo_stderr "appgwAlias is required. "
+    usage 1
+  fi
+
+  if [ -z "$enableInternalLB" ]; then
+    echo_stderr "enableInternalLB is required. "
     usage 1
   fi
 }
@@ -368,8 +373,7 @@ EOF
 function network_peers_aks_appgw() {
   # To successfully peer two virtual networks command 'az network vnet peering create' must be called twice with the values
   # for --vnet-name and --remote-vnet reversed.
-  aksLocation=$(az aks show --name ${aksClusterName} -g ${aksClusterRGName} -o tsv --query "location")
-  aksMCRGName="MC_${aksClusterRGName}_${aksClusterName}_${aksLocation}"
+  aksMCRGName=$(az aks show -n $aksClusterName -g $aksClusterRGName -o tsv --query "nodeResourceGroup")
   ret=$(az group exists ${aksMCRGName})
   if [ "${ret,,}" == "false" ]; then
     echo_stderr "AKS namaged resource group ${aksMCRGName} does not exist."
@@ -395,6 +399,20 @@ function network_peers_aks_appgw() {
     --allow-vnet-access
 
   validate_status "Create network peers for $aksNetWorkId and ${vnetName}."
+
+  # For Kbectl network plugin: https://azure.github.io/application-gateway-kubernetes-ingress/how-tos/networking/#with-kubenet
+  # find route table used by aks cluster
+  routeTableId=$(az network route-table list -g $aksMCRGName --query "[].id | [0]" -o tsv)
+
+  # get the application gateway's subnet
+  appGatewaySubnetId=$(az network application-gateway show -n $appgwName -g $curRGName -o tsv --query "gatewayIpConfigurations[0].subnet.id")
+
+  # associate the route table to Application Gateway's subnet
+  az network vnet subnet update \
+  --ids $appGatewaySubnetId
+  --route-table $routeTableId
+
+  validate_status "Associate the route table ${routeTableId} to Application Gateway's subnet ${appGatewaySubnetId}"
 }
 
 function create_appgw_ingress() {
@@ -484,7 +502,7 @@ function create_appgw_ingress() {
   waitfor_svc_completed ${ingressSvcName}
 
   if [[ ${appgwForAdminServer,,} == "true" ]]; then
-    # generate ingress svc config for cluster
+    # generate ingress svc config for admin server
     appgwIngressSvcConfig=${scriptDir}/azure-ingress-appgateway-admin.yaml
     cp ${scriptDir}/azure-ingress-appgateway.yaml.template ${appgwIngressSvcConfig}
     ingressSvcName="${wlsDomainUID}-admin-appgw-ingress-svc"
@@ -524,6 +542,7 @@ export dnsZoneName=${15}
 export dnsAdminLabel=${16}
 export dnsClusterLabel=${17}
 export appgwAlias=${18}
+export enableInternalLB=${19}
 
 export adminServerName="admin-server"
 export adminConsoleEndpoint="null"
