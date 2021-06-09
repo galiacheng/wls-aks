@@ -437,6 +437,7 @@ function cleanup_vm() {
 }
 
 function query_output_aks_outbound_ip() {
+    echo "query and output aks outbound ip"
     aksMCRGName=$(az aks show -n $aksClusterName -g $aksClusterRGName -o tsv --query "nodeResourceGroup")
     publicIPs=$(az resource list -g ${aksMCRGName} --resource-type Microsoft.Network/publicIPAddresses --query '[*].id')
     ipArray=$( echo $publicIP | tr -d \[\]\" | tr "," "\n")
@@ -446,7 +447,7 @@ function query_output_aks_outbound_ip() {
         if [ -n "$ret" ];then
             outboundIP=$(az resource show --ids ${item} --query properties.ipAddress -o tsv)
             result=$(jq -n -c \
-                --arg aksOutboundIP $outboundIP
+                --arg aksOutboundIP $outboundIP \
                 '{aksOutboundIP: $aksOutboundIP')
             echo "result is: $result"
             echo $result >$AZ_SCRIPTS_OUTPUT_PATH
