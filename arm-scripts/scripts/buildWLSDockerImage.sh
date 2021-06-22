@@ -238,8 +238,8 @@ EOF
 
     if [[ "${enableSSL,,}" == "true" ]]
     then
-        chmod ugo+x $scriptDir/genImageModelSSLEnable.sh
-        bash $scriptDir/genImageModelSSLEnable.sh \
+        chmod ugo+x $scriptDir/genImageModelSSLEnabled.sh
+        bash $scriptDir/genImageModelSSLEnabled.sh \
             ${modelFilePath} \
             ${appPackageUrls} \
             ${wlsIdentityPsw} \
