@@ -244,7 +244,7 @@ function build_docker_image() {
     --publisher Microsoft.Azure.Extensions \
     --version 2.0 \
     --settings "{ \"fileUris\": [\"${scriptURL}model.properties\",\"${scriptURL}genImageModel.sh\",\"${scriptURL}genImageModelSSLEnabled.sh\",\"${scriptURL}buildWLSDockerImage.sh\"]}" \
-    --protected-settings "{\"commandToExecute\":\"bash buildWLSDockerImage.sh ${wlsImagePath} ${azureACRServer} ${azureACRUserName} ${azureACRPassword} ${newImageTag} \\\"${appPackageUrls}\\\" ${ocrSSOUser} ${ocrSSOPSW} ${wlsClusterSize}\"}"
+    --protected-settings "{\"commandToExecute\":\"bash buildWLSDockerImage.sh ${wlsImagePath} ${azureACRServer} ${azureACRUserName} ${azureACRPassword} ${newImageTag} \\\"${appPackageUrls}\\\" ${ocrSSOUser} ${ocrSSOPSW} ${wlsClusterSize} ${enableSSL} \\\"${wlsIdentityData}\\\" ${wlsIdentityPsw} ${wlsIdentityType} ${wlsIdentityAlias} ${wlsIdentityKeyPsw} \\\"${wlsTrustData}\\\" ${wlsTrustPsw} ${wlsTrustType} ${gatewayAlias} \"}"
 
     # If error fires, keep vm resource and exit.
     validate_status "Check status of buiding WLS domain image."
@@ -469,6 +469,7 @@ export wlsIdentityKeyPsw=${26}
 export wlsTrustData=${27}
 export wlsTrustPsw=${28}
 export wlsTrustType=${29}
+export gatewayAlias=${30}
 
 export adminServerName="admin-server"
 export exitCode=0
