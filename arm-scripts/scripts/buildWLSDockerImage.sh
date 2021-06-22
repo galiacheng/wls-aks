@@ -151,7 +151,7 @@ function get_wls_image_from_ocr() {
 
 function validate_ssl_keystores() {
     #validate identity keystore
-    ${JAVA_HOME}/jre/bin/keytool -list -v \
+    ${JAVA_HOME}/bin/keytool -list -v \
         -keystore ${scriptDir}/model-images/$wlsIdentityKeyStoreFileName \
         -storepass $wlsIdentityPsw \
         -storetype $wlsIdentityType \
@@ -161,7 +161,7 @@ function validate_ssl_keystores() {
     validate_status "Validate Identity Keystore."
 
     #validate Trust keystore
-    ${JAVA_HOME}/jre/bin/keytool -list -v \
+    ${JAVA_HOME}/bin/keytool -list -v \
         -keystore ${scriptDir}/model-images/${wlsTrustKeyStoreFileName} \
         -storepass $wlsTrustPsw \
         -storetype $wlsTrustType \
@@ -174,7 +174,7 @@ function validate_ssl_keystores() {
 }
 
 function generate_selfsigned_certificates() {
-    ${JAVA_HOME}/jre/bin/keytool -genkey \
+    ${JAVA_HOME}/bin/keytool -genkey \
         -alias ${wlsIndetityKeyAlias} \
         -keyalg RSA -keysize 2048 \
         -sigalg SHA256withRSA -validity 365 \
@@ -185,7 +185,7 @@ function generate_selfsigned_certificates() {
 
     validate_status "Generate self signed identity keystore with common name: ${gatewayAlias}"
 
-    ${JAVA_HOME}/jre/bin/keytool -export \
+    ${JAVA_HOME}/bin/keytool -export \
         -alias ${wlsIndetityKeyAlias} \
         -noprompt \
         -file ${scriptDir}/model-images/${wlsIdentityRootCertFileName} \
@@ -194,7 +194,7 @@ function generate_selfsigned_certificates() {
 
     validate_status "Exporting root cert from identity key store"
 
-    ${JAVA_HOME}/jre/bin/keytool -import \
+    ${JAVA_HOME}/bin/keytool -import \
         -alias ${wlsIndetityKeyAlias} \
         -noprompt \
         -file ${scriptDir}/model-images/${wlsIdentityRootCertFileName} \
