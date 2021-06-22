@@ -63,7 +63,7 @@ topology:
       ListenPort: 8001
       SSL:
         HostnameVerificationIgnored: true
-        ListenPort: 8001
+        ListenPort: 8002
         Enabled: true
         HostnameVerifier: 'None'
         ServerPrivateKeyAlias: "$wlsIdentityAlias"
