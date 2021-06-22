@@ -176,13 +176,7 @@ function validate_ssl_keystores() {
 function output_ssl_keystore() {
     echo "Custom SSL is enabled. Storing CertInfo as files..."
     wlsIdentityData=$(echo "$wlsIdentityData" | base64 --decode)
-    wlsIdentityPsw=$(echo "$wlsIdentityPsw" | base64 --decode)
-    wlsIdentityType=$(echo "$wlsIdentityType" | base64 --decode)
     wlsTrustData=$(echo "$wlsTrustData" | base64 --decode)
-    wlsTrustPsw=$(echo "$wlsTrustPsw" | base64 --decode)
-    wlsTrustType=$(echo "$wlsTrustType" | base64 --decode)
-    wlsIdentityAlias=$(echo "$wlsIdentityAlias" | base64 --decode)
-    wlsIdentityKeyPsw=$(echo "$wlsIdentityKeyPsw" | base64 --decode)
     #decode cert data once again as it would got base64 encoded
     echo "$wlsIdentityData" | base64 --decode >${scriptDir}/model-images/$wlsIdentityKeyStoreFileName
     echo "$wlsTrustData" | base64 --decode >${scriptDir}/model-images/$wlsTrustKeyStoreFileName
