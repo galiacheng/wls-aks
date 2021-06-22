@@ -243,7 +243,7 @@ function build_docker_image() {
     --vm-name ${vmName} \
     --publisher Microsoft.Azure.Extensions \
     --version 2.0 \
-    --settings "{ \"fileUris\": [\"${scriptURL}model.yaml\",\"${scriptURL}model.properties\",\"${scriptURL}buildWLSDockerImage.sh\"]}" \
+    --settings "{ \"fileUris\": [\"${scriptURL}model.properties\",\"${scriptURL}genImageModel.sh\",\"${scriptURL}genImageModelSSLEnabled.sh\",\"${scriptURL}buildWLSDockerImage.sh\"]}" \
     --protected-settings "{\"commandToExecute\":\"bash buildWLSDockerImage.sh ${wlsImagePath} ${azureACRServer} ${azureACRUserName} ${azureACRPassword} ${newImageTag} \\\"${appPackageUrls}\\\" ${ocrSSOUser} ${ocrSSOPSW} ${wlsClusterSize}\"}"
 
     # If error fires, keep vm resource and exit.
@@ -460,6 +460,15 @@ export currentResourceGroup=${17}
 export scriptURL=${18}
 export storageAccountName=${19}
 export wlsClusterSize=${20}
+export enableSSL=${21}
+export wlsIdentityData=${22}
+export wlsIdentityPsw=${23}
+export wlsIdentityType=${24}
+export wlsIdentityAlias=${25}
+export wlsIdentityKeyPsw=${26}
+export wlsTrustData=${27}
+export wlsTrustPsw=${28}
+export wlsTrustType=${29}
 
 export adminServerName="admin-server"
 export exitCode=0

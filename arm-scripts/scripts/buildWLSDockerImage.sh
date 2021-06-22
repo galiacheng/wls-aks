@@ -84,6 +84,8 @@ function initialize() {
     mkdir wlsdeploy
     mkdir wlsdeploy/config
     mkdir wlsdeploy/applications
+    # Store certificates
+    mkdir wlsdeploy/servers
 }
 
 # Install docker, zip, unzip and java
@@ -147,6 +149,52 @@ function get_wls_image_from_ocr() {
     validate_status "Finish pulling image from OCR."
 }
 
+function validate_ssl_keystores() {
+    #validate identity keystore
+    ${JAVA_HOME}/jre/bin/keytool -list -v \
+        -keystore $wlsIdentityKeyStoreFileName \
+        -storepass $wlsIdentityPsw \
+        -storetype $wlsIdentityType \
+        | grep 'Entry type:' \
+        | grep 'PrivateKeyEntry'
+
+    validate_status "Validate Identity Keystore."
+
+    #validate Trust keystore
+    ${JAVA_HOME}/jre/bin/keytool -list -v \
+        -keystore $wlsTrustKeyStoreFileName \
+        -storepass $wlsTrustPsw \
+        -storetype $wlsTrustType \
+        | grep 'Entry type:' \
+        | grep 'trustedCertEntry'
+
+    validate_status "Validate Trust Keystore."
+
+    echo "ValidateSSLKeyStores Successfull !!"
+}
+
+function output_ssl_keystore() {
+    echo "Custom SSL is enabled. Storing CertInfo as files..."
+    wlsIdentityData=$(echo "$wlsIdentityData" | base64 --decode)
+    wlsIdentityPsw=$(echo "$wlsIdentityPsw" | base64 --decode)
+    wlsIdentityType=$(echo "$wlsIdentityType" | base64 --decode)
+    wlsTrustData=$(echo "$wlsTrustData" | base64 --decode)
+    wlsTrustPsw=$(echo "$wlsTrustPsw" | base64 --decode)
+    wlsTrustType=$(echo "$wlsTrustType" | base64 --decode)
+    wlsIdentityAlias=$(echo "$wlsIdentityAlias" | base64 --decode)
+    wlsIdentityKeyPsw=$(echo "$wlsIdentityKeyPsw" | base64 --decode)
+    #decode cert data once again as it would got base64 encoded
+    echo "$wlsIdentityData" | base64 --decode >${scriptDir}/model-images/$wlsIdentityKeyStoreFileName
+    echo "$wlsTrustData" | base64 --decode >${scriptDir}/model-images/$wlsTrustKeyStoreFileName
+}
+
+function prepare_certificates() {
+    if [[ "${enableSSL,,}" == "true" ]];then
+        output_ssl_keystore
+        validate_ssl_keystores
+    fi
+}
+
 # Generate model configurations
 function prepare_wls_models() {
     # Create configuration in model.properties
@@ -155,35 +203,30 @@ function prepare_wls_models() {
 CLUSTER_SIZE=${wlsClusterSize}
 EOF
 
-    # Generate application deployment model in model.yaml
-    # Known issue: no support for package name that has comma.
-    # remove []
-    if [ "${appPackageUrls}" == "[]" ]; then
-        return
+    echo "Starting generating image model file..."
+    modelFilePath="$scriptDir/model.yaml"
+
+    if [[ "${enableSSL,,}" == "true" ]];then
+        chmod ugo+x $scriptDir/genImageModelSSLEnable.sh
+        bash $scriptDir/genImageModel.sh \
+            ${modelFilePath} \
+            ${appPackageUrls} \
+            ${wlsIdentityPsw} \
+            ${wlsIdentityType} \
+            ${wlsIdentityAlias} \
+            ${wlsIdentityKeyPsw} \
+            ${wlsTrustPsw} \
+            ${wlsTrustType} \
+            ${wlsIdentityKeyStoreFileName} \
+            ${wlsTrustKeyStoreFileName}
+    else
+        chmod ugo+x $scriptDir/genImageModel.sh
+        bash $scriptDir/genImageModelSSLEnable.sh \
+            ${modelFilePath} \
+            ${appPackageUrls} \
     fi
 
-    cat <<EOF >>${scriptDir}/model.yaml
-appDeployments:
-  Application:
-EOF
-    appPackageUrls=$(echo "${appPackageUrls:1:${#appPackageUrls}-2}")
-    appUrlArray=$(echo $appPackageUrls | tr "," "\n")
-
-    index=1
-    for item in $appUrlArray; do
-        # e.g. https://wlsaksapp.blob.core.windows.net/japps/testwebapp.war?sp=r&se=2021-04-29T15:12:38Z&sv=2020-02-10&sr=b&sig=7grL4qP%2BcJ%2BLfDJgHXiDeQ2ZvlWosRLRQ1ciLk0Kl7M%3D
-        fileNamewithQueryString="${item##*/}"
-        fileName="${fileNamewithQueryString%\?*}"
-        fileExtension="${fileName##*.}"
-        curl -m 120 -fL "$item" -o wlsdeploy/applications/${fileName}
-        cat <<EOF >>${scriptDir}/model.yaml
-    app${index}:
-      SourcePath: 'wlsdeploy/applications/${fileName}'
-      ModuleType: ${fileExtension}
-      Target: 'cluster-1'
-EOF
-        index=$((index + 1))
-    done
+    validate_status "Generate image model file."
 }
 
 # Build weblogic image
@@ -237,17 +280,30 @@ export appPackageUrls=$6
 export ocrSSOUser=$7
 export ocrSSOPSW=$8
 export wlsClusterSize=$9
+export enableSSL=${10}
+export wlsIdentityData=${11}
+export wlsIdentityPsw=${12}
+export wlsIdentityType=${13}
+export wlsIdentityAlias=${14}
+export wlsIdentityKeyPsw=${15}
+export wlsTrustData=${16}
+export wlsTrustPsw=${17}
+export wlsTrustType=${18}
 
 export acrImagePath="$azureACRServer/aks-wls-images:${imageTag}"
 export ocrLoginServer="container-registry.oracle.com"
 export wdtDownloadURL="https://github.com/oracle/weblogic-deploy-tooling/releases/download/release-1.9.14/weblogic-deploy.zip"
 export witDownloadURL="https://github.com/oracle/weblogic-image-tool/releases/download/release-1.9.12/imagetool.zip"
+export wlsIdentityKeyStoreFileName="wlsdeploy/servers/identity.keystore"
+export wlsTrustKeyStoreFileName="wlsdeploy/servers/trust.keystore"
 
 validate_inputs
 
 initialize
 
 install_utilities
+
+prepare_certificates
 
 get_wls_image_from_ocr
 

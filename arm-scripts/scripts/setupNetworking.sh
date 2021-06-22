@@ -409,8 +409,8 @@ function network_peers_aks_appgw() {
 
   # associate the route table to Application Gateway's subnet
   az network vnet subnet update \
-  --ids $appGatewaySubnetId
-  --route-table $routeTableId
+    --ids $appGatewaySubnetId \
+    --route-table $routeTableId
 
   validate_status "Associate the route table ${routeTableId} to Application Gateway's subnet ${appGatewaySubnetId}"
 }
@@ -547,9 +547,12 @@ export enableInternalLB=${19}
 export adminServerName="admin-server"
 export adminConsoleEndpoint="null"
 export appgwIngressHelmRepo="https://appgwingress.blob.core.windows.net/ingress-azure-helm-package/"
+export appgwSslCertName="appGwSslCertificate"
+export azureAppgwIngressVersion="1.4.0"
 export clusterName="cluster-1"
 export clusterEndpoint="null"
-export azureAppgwIngressVersion="1.4.0"
+export httpsListenerName="myHttpsListenerName$(date +%s)"
+export httpsRuleName="myHttpsRule$(date +%s)"
 export perfRetryInterval=30 # seconds
 export perfPodAttemps=5
 export perfSVCAttemps=10
