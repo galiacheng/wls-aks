@@ -212,6 +212,13 @@ function output_ssl_keystore() {
         #decode cert data once again as it would got base64 encoded
         echo "$wlsIdentityData" | base64 --decode >${scriptDir}/model-images/$wlsIdentityKeyStoreFileName
         echo "$wlsTrustData" | base64 --decode >${scriptDir}/model-images/$wlsTrustKeyStoreFileName
+        # export root cert.
+        ${JAVA_HOME}/bin/keytool -export \
+        -alias ${wlsIdentityAlias} \
+        -noprompt \
+        -file ${scriptDir}/model-images/${wlsIdentityRootCertFileName} \
+        -keystore ${scriptDir}/model-images/$wlsIdentityKeyStoreFileName \
+        -storepass ${wlsIdentityPsw}
     else 
         echo "generate self signed keystores..."
         generate_selfsigned_certificates

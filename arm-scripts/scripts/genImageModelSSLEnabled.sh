@@ -49,10 +49,10 @@ topology:
         ServerPrivateKeyAlias: "$wlsIdentityAlias"
         ServerPrivateKeyPassPhraseEncrypted: "$wlsIdentityKeyPsw"
       KeyStores: 'CustomIdentityAndCustomTrust'
-      CustomIdentityKeyStoreFileName: "$wlsIdentityKeyStoreFileName"
+      CustomIdentityKeyStoreFileName: "@@DOMAIN_HOME@@/$wlsIdentityKeyStoreFileName"
       CustomIdentityKeyStoreType: "$wlsIdentityType"
       CustomIdentityKeyStorePassPhraseEncrypted: "$wlsIdentityPsw"
-      CustomTrustKeyStoreFileName: "$wlsTrustKeyStoreFileName"
+      CustomTrustKeyStoreFileName: "@@DOMAIN_HOME@@/$wlsTrustKeyStoreFileName"
       CustomTrustKeyStoreType: "$wlsTrustType"
       CustomTrustKeyStorePassPhraseEncrypted: "$wlsTrustPsw"
 
@@ -69,10 +69,10 @@ topology:
         ServerPrivateKeyAlias: "$wlsIdentityAlias"
         ServerPrivateKeyPassPhraseEncrypted: "$wlsIdentityKeyPsw"
       KeyStores: 'CustomIdentityAndCustomTrust'
-      CustomIdentityKeyStoreFileName: "$wlsIdentityKeyStoreFileName"
+      CustomIdentityKeyStoreFileName: "@@DOMAIN_HOME@@/$wlsIdentityKeyStoreFileName"
       CustomIdentityKeyStoreType: "$wlsIdentityType"
       CustomIdentityKeyStorePassPhraseEncrypted: "$wlsIdentityPsw"
-      CustomTrustKeyStoreFileName: "$wlsTrustKeyStoreFileName"
+      CustomTrustKeyStoreFileName: "@@DOMAIN_HOME@@/$wlsTrustKeyStoreFileName"
       CustomTrustKeyStoreType: "$wlsTrustType"
       CustomTrustKeyStorePassPhraseEncrypted: "$wlsTrustPsw"
 
