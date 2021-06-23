@@ -76,6 +76,10 @@ topology:
       CustomTrustKeyStoreType: "$wlsTrustType"
       CustomTrustKeyStorePassPhraseEncrypted: "$wlsTrustPsw"
 
+  SecurityConfiguration:
+        NodeManagerUsername: "@@SECRET:__weblogic-credentials__:username@@"
+        NodeManagerPasswordEncrypted: "@@SECRET:__weblogic-credentials__:password@@"
+
 resources:
   # Enable SSL for admin server
   WebAppContainer:
