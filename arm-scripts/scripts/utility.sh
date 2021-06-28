@@ -3,9 +3,9 @@ function install_jdk() {
     if [ ! -d "${JAVA_HOME}" ]; then
         # Install Microsoft OpenJDK
         wget https://packages.microsoft.com/config/ubuntu/18.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
-        sudo dpkg -i packages-microsoft-prod.deb
-        sudo apt -q update
-        sudo apt -y -q install msopenjdk-11
+        dpkg -i packages-microsoft-prod.deb
+        apt -q update
+        apt -y -q install msopenjdk-11
 
         echo "java version"
         java -version
