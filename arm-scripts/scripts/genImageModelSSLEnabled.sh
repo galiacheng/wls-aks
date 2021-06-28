@@ -4,14 +4,6 @@ export scriptDir="$(cd "$(dirname "${script}")" && pwd)"
 
 export filePath=$1
 export appPackageUrls=$2
-export wlsIdentityPsw=$3
-export wlsIdentityType=$4
-export wlsIdentityAlias=$5
-export wlsIdentityKeyPsw=$6
-export wlsTrustPsw=$7
-export wlsTrustType=$8
-export wlsIdentityKeyStoreFileName=$9
-export wlsTrustKeyStoreFileName=${10}
 
 cat <<EOF >${filePath}
 # Copyright (c) 2020, 2021, Oracle and/or its affiliates.
@@ -46,16 +38,15 @@ topology:
         ListenPort: 7002
         Enabled: true
         HostnameVerifier: 'None'
-        ServerPrivateKeyAlias: "$wlsIdentityAlias"
-        ServerPrivateKeyPassPhraseEncrypted: "$wlsIdentityKeyPsw"
+        ServerPrivateKeyAlias: "@@ENV:SSL_IDENTITY_PRIVATE_KEY_ALIAS@@"
+        ServerPrivateKeyPassPhraseEncrypted: "@@ENV:SSL_IDENTITY_PRIVATE_KEY_PSW@@"
       KeyStores: 'CustomIdentityAndCustomTrust'
-      CustomIdentityKeyStoreFileName: "@@DOMAIN_HOME@@/$wlsIdentityKeyStoreFileName"
-      CustomIdentityKeyStoreType: "$wlsIdentityType"
-      CustomIdentityKeyStorePassPhraseEncrypted: "$wlsIdentityPsw"
-      CustomTrustKeyStoreFileName: "@@DOMAIN_HOME@@/$wlsTrustKeyStoreFileName"
-      CustomTrustKeyStoreType: "$wlsTrustType"
-      CustomTrustKeyStorePassPhraseEncrypted: "$wlsTrustPsw"
-
+      CustomIdentityKeyStoreFileName: "@@ENV:SSL_IDENTITY_PRIVATE_KEYSTORE_PATH@@"
+      CustomIdentityKeyStoreType: "@@ENV:SSL_IDENTITY_PRIVATE_KEYSTORE_TYPE@@"
+      CustomIdentityKeyStorePassPhraseEncrypted: "@@ENV:SSL_IDENTITY_PRIVATE_KEYSTORE_PSW@@"
+      CustomTrustKeyStoreFileName: "@@ENV:SSL_TRUST_KEYSTORE_PATH@@"
+      CustomTrustKeyStoreType: "@@ENV:SSL_TRUST_KEYSTORE_TYPE@@"
+      CustomTrustKeyStorePassPhraseEncrypted: "@@ENV:SSL_TRUST_KEYSTORE_PSW@@"
 
   ServerTemplate:
     "cluster-1-template":
@@ -66,15 +57,15 @@ topology:
         ListenPort: 8002
         Enabled: true
         HostnameVerifier: 'None'
-        ServerPrivateKeyAlias: "$wlsIdentityAlias"
-        ServerPrivateKeyPassPhraseEncrypted: "$wlsIdentityKeyPsw"
+        ServerPrivateKeyAlias: "@@ENV:SSL_IDENTITY_PRIVATE_KEY_ALIAS@@"
+        ServerPrivateKeyPassPhraseEncrypted: "@@ENV:SSL_IDENTITY_PRIVATE_KEY_PSW@@"
       KeyStores: 'CustomIdentityAndCustomTrust'
-      CustomIdentityKeyStoreFileName: "@@DOMAIN_HOME@@/$wlsIdentityKeyStoreFileName"
-      CustomIdentityKeyStoreType: "$wlsIdentityType"
-      CustomIdentityKeyStorePassPhraseEncrypted: "$wlsIdentityPsw"
-      CustomTrustKeyStoreFileName: "@@DOMAIN_HOME@@/$wlsTrustKeyStoreFileName"
-      CustomTrustKeyStoreType: "$wlsTrustType"
-      CustomTrustKeyStorePassPhraseEncrypted: "$wlsTrustPsw"
+      CustomIdentityKeyStoreFileName: "@@ENV:SSL_IDENTITY_PRIVATE_KEYSTORE_PATH@@"
+      CustomIdentityKeyStoreType: "@@ENV:SSL_IDENTITY_PRIVATE_KEYSTORE_TYPE@@"
+      CustomIdentityKeyStorePassPhraseEncrypted: "@@ENV:SSL_IDENTITY_PRIVATE_KEYSTORE_PSW@@"
+      CustomTrustKeyStoreFileName: "@@ENV:SSL_TRUST_KEYSTORE_PATH@@"
+      CustomTrustKeyStoreType: "@@ENV:SSL_TRUST_KEYSTORE_TYPE@@"
+      CustomTrustKeyStorePassPhraseEncrypted: "@@ENV:SSL_TRUST_KEYSTORE_PSW@@"
 
   SecurityConfiguration:
     NodeManagerUsername: "@@SECRET:__weblogic-credentials__:username@@"
@@ -101,9 +92,9 @@ resources:
 
 EOF
 
-if [ "${appPackageUrls}" == "[]" ]; then
-        return
-    fi
+  if [ "${appPackageUrls}" == "[]" ]; then
+        exit 0
+  fi
 
     cat <<EOF >>${filePath}
 appDeployments:

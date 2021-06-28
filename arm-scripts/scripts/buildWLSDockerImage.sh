@@ -149,89 +149,6 @@ function get_wls_image_from_ocr() {
     validate_status "Finish pulling image from OCR."
 }
 
-function validate_ssl_keystores() {
-    #validate identity keystore
-    ${JAVA_HOME}/bin/keytool -list -v \
-        -keystore ${scriptDir}/model-images/$wlsIdentityKeyStoreFileName \
-        -storepass $wlsIdentityPsw \
-        -storetype $wlsIdentityType \
-        | grep 'Entry type:' \
-        | grep 'PrivateKeyEntry'
-
-    validate_status "Validate Identity Keystore."
-
-    #validate Trust keystore
-    ${JAVA_HOME}/bin/keytool -list -v \
-        -keystore ${scriptDir}/model-images/${wlsTrustKeyStoreFileName} \
-        -storepass $wlsTrustPsw \
-        -storetype $wlsTrustType \
-        | grep 'Entry type:' \
-        | grep 'trustedCertEntry'
-
-    validate_status "Validate Trust Keystore."
-
-    echo "ValidateSSLKeyStores Successfull !!"
-}
-
-function generate_selfsigned_certificates() {
-    ${JAVA_HOME}/bin/keytool -genkey \
-        -alias ${wlsIndetityKeyAlias} \
-        -keyalg RSA -keysize 2048 \
-        -sigalg SHA256withRSA -validity 365 \
-        -keystore ${scriptDir}/model-images/$wlsIdentityKeyStoreFileName \
-        -keypass ${wlsDemoIdentityPassPhrase} \
-        -storepass ${wlsDemoIdentityKeyStorePassPhrase} \
-        -dname CN=${gatewayAlias}
-
-    validate_status "Generate self signed identity keystore with common name: ${gatewayAlias}"
-
-    ${JAVA_HOME}/bin/keytool -export \
-        -alias ${wlsIndetityKeyAlias} \
-        -noprompt \
-        -file ${scriptDir}/model-images/${wlsIdentityRootCertFileName} \
-        -keystore ${scriptDir}/model-images/$wlsIdentityKeyStoreFileName \
-        -storepass ${wlsDemoIdentityKeyStorePassPhrase}
-
-    validate_status "Exporting root cert from identity key store"
-
-    ${JAVA_HOME}/bin/keytool -import \
-        -alias ${wlsIndetityKeyAlias} \
-        -noprompt \
-        -file ${scriptDir}/model-images/${wlsIdentityRootCertFileName} \
-        -keystore ${scriptDir}/model-images/${wlsTrustKeyStoreFileName} \
-        -storepass ${wlsDemoTrustPassPhrase}
-    
-    validate_status "Generate trust key store."
-}
-
-function output_ssl_keystore() {
-    echo ${wlsIdentityData}
-    echo ${wlsTrustData}
-    echo "Custom SSL is enabled. Storing CertInfo as files..."
-    if [[ "$wlsIdentityData" != "null" && "${wlsTrustData}" != "null" ]];then
-        #decode cert data once again as it would got base64 encoded
-        echo "$wlsIdentityData" | base64 --decode >${scriptDir}/model-images/$wlsIdentityKeyStoreFileName
-        echo "$wlsTrustData" | base64 --decode >${scriptDir}/model-images/$wlsTrustKeyStoreFileName
-        # export root cert.
-        ${JAVA_HOME}/bin/keytool -export \
-        -alias ${wlsIdentityAlias} \
-        -noprompt \
-        -file ${scriptDir}/model-images/${wlsIdentityRootCertFileName} \
-        -keystore ${scriptDir}/model-images/$wlsIdentityKeyStoreFileName \
-        -storepass ${wlsIdentityPsw}
-    else 
-        echo "generate self signed keystores..."
-        generate_selfsigned_certificates
-    fi
-}
-
-function prepare_certificates() {
-    if [[ "${enableSSL,,}" == "true" ]];then
-        output_ssl_keystore
-        validate_ssl_keystores
-    fi
-}
-
 # Generate model configurations
 function prepare_wls_models() {
     # Create configuration in model.properties
@@ -243,21 +160,12 @@ EOF
     echo "Starting generating image model file..."
     modelFilePath="$scriptDir/model.yaml"
 
-    if [[ "${enableSSL,,}" == "true" ]]
-    then
+    if [[ "${enableSSL,,}" == "true" ]]; then
         chmod ugo+x $scriptDir/genImageModelSSLEnabled.sh
         bash $scriptDir/genImageModelSSLEnabled.sh \
             ${modelFilePath} \
-            ${appPackageUrls} \
-            ${wlsIdentityPsw} \
-            ${wlsIdentityType} \
-            ${wlsIdentityAlias} \
-            ${wlsIdentityKeyPsw} \
-            ${wlsTrustPsw} \
-            ${wlsTrustType} \
-            ${wlsIdentityKeyStoreFileName} \
-            ${wlsTrustKeyStoreFileName}
-        validate_status "Generate image model file."
+            ${appPackageUrls}
+        validate_status "Generate image ssl model file."
     else
         chmod ugo+x $scriptDir/genImageModel.sh
         bash $scriptDir/genImageModel.sh \
@@ -291,6 +199,7 @@ function build_wls_image() {
         --wdtModelOnly \
         --wdtDomainType WLS \
         --chown oracle:root
+    # --additionalBuildCommands ${scriptDir}/nodemanager.dockerfile
 
     validate_status "Check status of building WLS domain image."
 
@@ -319,27 +228,11 @@ export ocrSSOUser=$7
 export ocrSSOPSW=$8
 export wlsClusterSize=$9
 export enableSSL=${10}
-export wlsIdentityData=${11}
-export wlsIdentityPsw=${12}
-export wlsIdentityType=${13}
-export wlsIdentityAlias=${14}
-export wlsIdentityKeyPsw=${15}
-export wlsTrustData=${16}
-export wlsTrustPsw=${17}
-export wlsTrustType=${18}
-export gatewayAlias=${19}
 
 export acrImagePath="$azureACRServer/aks-wls-images:${imageTag}"
 export ocrLoginServer="container-registry.oracle.com"
-export wlsDemoIdentityKeyStorePassPhrase="DemoIdentityKeyStorePassPhrase"
-export wlsIndetityKeyAlias="servercert"
-export wlsDemoIdentityPassPhrase="DemoIdentityPassPhrase"
-export wlsDemoTrustPassPhrase="DemoTrustKeyStorePassPhrase"
 export wdtDownloadURL="https://github.com/oracle/weblogic-deploy-tooling/releases/download/release-1.9.14/weblogic-deploy.zip"
 export witDownloadURL="https://github.com/oracle/weblogic-image-tool/releases/download/release-1.9.12/imagetool.zip"
-export wlsIdentityKeyStoreFileName="wlsdeploy/servers/identity.keystore"
-export wlsTrustKeyStoreFileName="wlsdeploy/servers/trust.keystore"
-export wlsIdentityRootCertFileName="wlsdeploy/servers/root.cert"
 
 validate_inputs
 
@@ -347,7 +240,7 @@ initialize
 
 install_utilities
 
-prepare_certificates
+# prepare_certificates
 
 get_wls_image_from_ocr
 

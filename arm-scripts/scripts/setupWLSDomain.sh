@@ -142,10 +142,10 @@ function install_utilities() {
     validate_status ${ret}
 
     # Install helm
-    browserURL=$(curl -s https://api.github.com/repos/helm/helm/releases/latest  \
-    | grep "browser_download_url.*linux-amd64.tar.gz.asc" \
-    | cut -d : -f 2,3 \
-    | tr -d \")
+    browserURL=$(curl -s https://api.github.com/repos/helm/helm/releases/latest |
+        grep "browser_download_url.*linux-amd64.tar.gz.asc" |
+        cut -d : -f 2,3 |
+        tr -d \")
     helmLatestVersion=${browserURL#*download\/}
     helmLatestVersion=${helmLatestVersion%%\/helm*}
     helmPackageName=helm-${helmLatestVersion}-linux-amd64.tar.gz
@@ -184,18 +184,18 @@ function install_wls_operator() {
     ret=$(helm repo list)
     validate_status ${ret}
     helm install ${wlsOptRelease} weblogic-operator/weblogic-operator \
-    --namespace ${wlsOptNameSpace} \
-    --set serviceAccount=${wlsOptSA} \
-    --set "enableClusterRoleBinding=true" \
-    --set "domainNamespaceSelectionStrategy=LabelSelector" \
-    --set "domainNamespaceLabelSelector=weblogic-operator\=enabled" \
-    --wait
+        --namespace ${wlsOptNameSpace} \
+        --set serviceAccount=${wlsOptSA} \
+        --set "enableClusterRoleBinding=true" \
+        --set "domainNamespaceSelectionStrategy=LabelSelector" \
+        --set "domainNamespaceLabelSelector=weblogic-operator\=enabled" \
+        --wait
 
     validate_status "Installing WLS operator."
 
     # valiadate weblogic operator
     ret=$(kubectl get pod -n ${wlsOptNameSpace} | grep "Running")
-    if [ -z "$ret" ];then
+    if [ -z "$ret" ]; then
         echo_stderr "Failed to install WebLogic operator."
         exit 1
     fi
@@ -223,28 +223,27 @@ function build_docker_image() {
     # Specify tag 'SkipASMAzSecPack' to skip policy 'linuxazuresecuritypackautodeployiaas_1.6'
     # Specify tag 'SkipNRMS*' to skip Microsoft internal NRMS policy, which cause vm-redeployed issue
     az vm create \
-    --resource-group ${currentResourceGroup} \
-    --name ${vmName} \
-    --image "Canonical:UbuntuServer:18.04-LTS:latest" \
-    --admin-username azureuser \
-    --generate-ssh-keys \
-    --nsg-rule NONE \
-    --enable-agent true \
-    --enable-auto-update false \
-    --tags SkipASMAzSecPack=true SkipNRMSCorp=true SkipNRMSDatabricks=true SkipNRMSDB=true SkipNRMSHigh=true SkipNRMSMedium=true SkipNRMSRDPSSH=true SkipNRMSSAW=true SkipNRMSMgmt=true\
-    --verbose
+        --resource-group ${currentResourceGroup} \
+        --name ${vmName} \
+        --image "Canonical:UbuntuServer:18.04-LTS:latest" \
+        --admin-username azureuser \
+        --generate-ssh-keys \
+        --nsg-rule NONE \
+        --enable-agent true \
+        --enable-auto-update false \
+        --tags SkipASMAzSecPack=true SkipNRMSCorp=true SkipNRMSDatabricks=true SkipNRMSDB=true SkipNRMSHigh=true SkipNRMSMedium=true SkipNRMSRDPSSH=true SkipNRMSSAW=true SkipNRMSMgmt=true --verbose
 
     validate_status "Check status of VM machine to build docker image."
 
     wlsImagePath="${ocrLoginServer}/middleware/weblogic:${wlsImageTag}"
     az vm extension set --name CustomScript \
-    --extension-instance-name wls-image-script \
-    --resource-group ${currentResourceGroup} \
-    --vm-name ${vmName} \
-    --publisher Microsoft.Azure.Extensions \
-    --version 2.0 \
-    --settings "{ \"fileUris\": [\"${scriptURL}model.properties\",\"${scriptURL}genImageModel.sh\",\"${scriptURL}genImageModelSSLEnabled.sh\",\"${scriptURL}buildWLSDockerImage.sh\"]}" \
-    --protected-settings "{\"commandToExecute\":\"bash buildWLSDockerImage.sh ${wlsImagePath} ${azureACRServer} ${azureACRUserName} ${azureACRPassword} ${newImageTag} \\\"${appPackageUrls}\\\" ${ocrSSOUser} ${ocrSSOPSW} ${wlsClusterSize} ${enableSSL} \\\"${wlsIdentityData}\\\" ${wlsIdentityPsw} ${wlsIdentityType} ${wlsIdentityAlias} ${wlsIdentityKeyPsw} \\\"${wlsTrustData}\\\" ${wlsTrustPsw} ${wlsTrustType} ${gatewayAlias} \"}"
+        --extension-instance-name wls-image-script \
+        --resource-group ${currentResourceGroup} \
+        --vm-name ${vmName} \
+        --publisher Microsoft.Azure.Extensions \
+        --version 2.0 \
+        --settings "{ \"fileUris\": [\"${scriptURL}model.properties\",\"${scriptURL}genImageModel.sh\",\"${scriptURL}genImageModelSSLEnabled.sh\",\"${scriptURL}buildWLSDockerImage.sh\"]}" \
+        --protected-settings "{\"commandToExecute\":\"bash buildWLSDockerImage.sh ${wlsImagePath} ${azureACRServer} ${azureACRUserName} ${azureACRPassword} ${newImageTag} \\\"${appPackageUrls}\\\" ${ocrSSOUser} ${ocrSSOPSW} ${wlsClusterSize} ${enableSSL} \"}"
 
     # If error fires, keep vm resource and exit.
     validate_status "Check status of buiding WLS domain image."
@@ -256,49 +255,118 @@ function build_docker_image() {
     cleanup_vm
 }
 
-# Deploy WebLogic domain and cluster
-#  * Create namespace for domain
-#  * Create secret for weblogic
-#  * Create secret for Azure file
-#  * Create secret for ACR
-#  * Deploy WebLogic domain using image in ACR
-#  * Wait for the domain completed
-function setup_wls_domain() {
-    kubectl create namespace ${wlsDomainNS}
-    kubectl label namespace ${wlsDomainNS} weblogic-operator=enabled
+function mount_fileshare() {
+    sudo apt update
+    sudo apt install cifs-utils
 
-    kubectl -n ${wlsDomainNS} create secret generic ${kubectlWLSCredentials} \
-    --from-literal=username=${wlsUserName} --from-literal=password=${wlsPassword}
-    kubectl -n ${wlsDomainNS} label secret ${kubectlWLSCredentials} weblogic.domainUID=${wlsDomainUID}
+    resourceGroupName="${currentResourceGroup}"
+    storageAccountName="${storageAccountName}"
+    fileShareName="${azFileShareName}"
 
-    kubectl -n ${wlsDomainNS} create secret generic ${wlsDomainUID}-runtime-encryption-secret \
-    --from-literal=password=${wdtRuntimePassword}
-    kubectl -n ${wlsDomainNS} label secret ${wlsDomainUID}-runtime-encryption-secret weblogic.domainUID=${wlsDomainUID}
+    mntRoot="/mount"
+    mntPath="$mntRoot/$storageAccountName/$fileShareName"
 
-    kubectl create secret docker-registry ${kubectlSecretForACR} \
-    --docker-server=${azureACRServer} \
-    --docker-username=${azureACRUserName} \
-    --docker-password=${azureACRPassword} \
-    -n ${wlsDomainNS}
+    sudo mkdir -p $mntPath
 
-    if [[ "${storageAccountName}" != "null" ]]; then
-        create_pv
+    # This command assumes you have logged in with az login
+    httpEndpoint=$(az storage account show \
+        --resource-group $resourceGroupName \
+        --name $storageAccountName \
+        --query "primaryEndpoints.file" | tr -d '"')
+    smbPath=$(echo $httpEndpoint | cut -c7-$(expr length $httpEndpoint))$fileShareName
+
+    sudo mount -t cifs $smbPath $mntPath -o username=$storageAccountName,password=$storageAccountKey,serverino
+}
+
+function validate_ssl_keystores() {
+    #validate identity keystore
+    ${JAVA_HOME}/bin/keytool -list -v \
+        -keystore ${mntPath}/$wlsIdentityKeyStoreFileName \
+        -storepass $wlsIdentityPsw \
+        -storetype $wlsIdentityType |
+        grep 'Entry type:' |
+        grep 'PrivateKeyEntry'
+
+    validate_status "Validate Identity Keystore."
+
+    #validate Trust keystore
+    ${JAVA_HOME}/bin/keytool -list -v \
+        -keystore ${mntPath}/${wlsTrustKeyStoreFileName} \
+        -storepass $wlsTrustPsw \
+        -storetype $wlsTrustType |
+        grep 'Entry type:' |
+        grep 'trustedCertEntry'
+
+    validate_status "Validate Trust Keystore."
+
+    echo "ValidateSSLKeyStores Successfull !!"
+}
+
+function generate_selfsigned_certificates() {
+    ${JAVA_HOME}/bin/keytool -genkey \
+        -alias ${wlsDemoIndetityKeyAlias} \
+        -keyalg RSA -keysize 2048 \
+        -sigalg SHA256withRSA -validity 365 \
+        -keystore ${mntPath}/$wlsIdentityKeyStoreFileName \
+        -keypass ${wlsDemoIdentityPassPhrase} \
+        -storepass ${wlsDemoIdentityKeyStorePassPhrase} \
+        -dname CN=${gatewayAlias}
+
+    validate_status "Generate self signed identity keystore with common name: ${gatewayAlias}"
+
+    wlsIdentityPsw=${wlsDemoIdentityKeyStorePassPhrase}
+    wlsIdentityType="PKCS12"
+    wlsIdentityAlias=${wlsDemoIndetityKeyAlias}
+    wlsIdentityKeyPsw=${wlsDemoIdentityPassPhrase}
+
+    ${JAVA_HOME}/bin/keytool -export \
+        -alias ${wlsDemoIndetityKeyAlias} \
+        -noprompt \
+        -file ${mntPath}/${wlsIdentityRootCertFileName} \
+        -keystore ${mntPath}/$wlsIdentityKeyStoreFileName \
+        -storepass ${wlsDemoIdentityKeyStorePassPhrase}
+
+    validate_status "Exporting root cert from identity key store"
+
+    ${JAVA_HOME}/bin/keytool -import \
+        -alias ${wlsDemoIndetityKeyAlias} \
+        -noprompt \
+        -file ${mntPath}/${wlsIdentityRootCertFileName} \
+        -keystore ${mntPath}/${wlsTrustKeyStoreFileName} \
+        -storepass ${wlsDemoTrustPassPhrase}
+
+    validate_status "Generate trust key store."
+    wlsTrustPsw=${wlsDemoTrustPassPhrase}
+    wlsTrustType="PKCS12"
+}
+
+function output_ssl_keystore() {
+    echo "Custom SSL is enabled. Storing CertInfo as files..."
+    if [[ "$wlsIdentityPath" != "null" && "${wlsTrustPath}" != "null" ]]; then
+        #decode cert data once again as it would got base64 encoded
+        echo "$wlsIdentityData" | base64 --decode >${mntPath}/$wlsIdentityKeyStoreFileName
+        echo "$wlsTrustData" | base64 --decode >${mntPath}/$wlsTrustKeyStoreFileName
+        # export root cert.
+        ${JAVA_HOME}/bin/keytool -export \
+            -alias ${wlsIdentityAlias} \
+            -noprompt \
+            -file ${mntPath}/${wlsIdentityRootCertFileName} \
+            -keystore ${mntPath}/$wlsIdentityKeyStoreFileName \
+            -storepass ${wlsIdentityPsw}
+    else
+        echo "generate self signed keystores..."
+        generate_selfsigned_certificates
     fi
 
-    # generate domain yaml
-    customDomainYaml=${scriptDir}/custom-domain.yaml
-    cp ${scriptDir}/domain.yaml.template ${customDomainYaml}
-    sed -i -e "s:@WLS_DOMAIN_UID@:${wlsDomainUID}:g" ${customDomainYaml}
-    sed -i -e "s:@WLS_IMAGE_PATH_ACR@:${azureACRServer}/aks-wls-images\:${newImageTag}:g" ${customDomainYaml}
-    sed -i -e "s:@RESOURCE_CPU@:${wlsCPU}:g" ${customDomainYaml}
-    sed -i -e "s:@RESOURCE_MEMORY@:${wlsMemory}:g" ${customDomainYaml}
-    sed -i -e "s:@DOMAIN_NAME@:${wlsDomainName}:g" ${customDomainYaml}
-    sed -i -e "s:@MANAGED_SERVER_PREFIX@:${managedServerPrefix}:g" ${customDomainYaml}
-    sed -i -e "s:@WLS_CLUSTER_REPLICAS@:${appReplicas}:g" ${customDomainYaml}
+    # convert trust key store to JKS which will be specified in Java Options
+    ${JAVA_HOME}/bin/keytool \
+        -importkeystore \
+        -srckeystore ${mntPath}/$wlsTrustKeyStoreFileName \
+        -destkeystore ${mntPath}/${wlsTrustJKSFileName} \
+        -deststoretype JKS \
+        -storepass ${wlsTrustPsw}
 
-    kubectl apply -f ${customDomainYaml}
-
-    wait_for_domain_completed
+    validate_status "Exporting trust jks file."
 }
 
 # Create storage for AKS cluster
@@ -309,8 +377,8 @@ function create_pv() {
     export storageAccountKey=$(az storage account keys list --resource-group $currentResourceGroup --account-name $storageAccountName --query "[0].value" -o tsv)
     export azureSecretName="azure-secret"
     kubectl -n ${wlsDomainNS} create secret generic ${azureSecretName} \
-    --from-literal=azurestorageaccountname=${storageAccountName} \
-    --from-literal=azurestorageaccountkey=${storageAccountKey}
+        --from-literal=azurestorageaccountname=${storageAccountName} \
+        --from-literal=azurestorageaccountkey=${storageAccountKey}
 
     # generate pv configurations
     customPVYaml=${scriptDir}/pv.yaml
@@ -331,9 +399,86 @@ function create_pv() {
 
     # validate PV PVC
     ret=$(kubectl get pv | grep "${pvName}" | grep "${pvcName}")
-    if [ -z "$ret" ];then
+    if [ -z "$ret" ]; then
         echo_stderr "Failed to create pv/pvc."
-    fi 
+    fi
+}
+
+# Deploy WebLogic domain and cluster
+#  * Create namespace for domain
+#  * Create secret for weblogic
+#  * Create secret for Azure file
+#  * Create secret for ACR
+#  * Deploy WebLogic domain using image in ACR
+#  * Wait for the domain completed
+function setup_wls_domain() {
+    kubectl create namespace ${wlsDomainNS}
+    kubectl label namespace ${wlsDomainNS} weblogic-operator=enabled
+
+    kubectl -n ${wlsDomainNS} create secret generic \
+        ${kubectlWLSCredentials} \
+        --from-literal=username=${wlsUserName} \
+        --from-literal=password=${wlsPassword}
+
+    kubectl -n ${wlsDomainNS} label secret ${kubectlWLSCredentials} weblogic.domainUID=${wlsDomainUID}
+
+    kubectl -n ${wlsDomainNS} create secret generic ${wlsDomainUID}-runtime-encryption-secret \
+        --from-literal=password=${wdtRuntimePassword}
+    kubectl -n ${wlsDomainNS} label secret ${wlsDomainUID}-runtime-encryption-secret weblogic.domainUID=${wlsDomainUID}
+
+    kubectl create secret docker-registry ${kubectlSecretForACR} \
+        --docker-server=${azureACRServer} \
+        --docker-username=${azureACRUserName} \
+        --docker-password=${azureACRPassword} \
+        -n ${wlsDomainNS}
+
+    export enablePV=false
+    if [[ "${storageAccountName}" != "null" ]]; then
+        create_pv
+        enablePV=true
+    fi
+
+    export javaOptions=""
+    if [[ "${enableSSL,,}" == "true" ]]; then
+        install_jdk
+        export JAVA_HOME=/usr/lib/jvm/msopenjdk-11-amd64
+
+        mount_fileshare
+        output_ssl_keystore
+        validate_ssl_keystores
+
+        kubectl -n ${wlsDomainNS} create secret generic ${kubectlWLSSSLCredentials} \
+            --from-literal=sslidentitykeyalias=${wlsIdentityAlias} \
+            --from-literal=sslidentitykeypassword=${wlsIdentityKeyPsw} \
+            --from-literal=sslidentitystorepath=${mntPath}/$wlsIdentityKeyStoreFileName \
+            --from-literal=sslidentitystoretype=${wlsIdentityType} \
+            --from-literal=ssltruststorepath=${mntPath}/${wlsTrustKeyStoreFileName} \
+            --from-literal=ssltruststoretype=${wlsTrustType} \
+            --from-literal=ssltruststorepassword=${wlsTrustPsw}
+
+        kubectl -n ${wlsDomainNS} label secret ${kubectlWLSSSLCredentials} weblogic.domainUID=${wlsDomainUID}
+        javaOptions="-Dweblogic.security.SSL.ignoreHostnameVerification=true -Dweblogic.security.SSL.trustedCAKeyStore=${mntPath}/${wlsTrustJKSFileName}"
+    fi
+
+    # generate domain yaml
+    customDomainYaml=${scriptDir}/custom-domain.yaml
+    chmod ugo+x $scriptDir/genDomainConfig.sh
+    bash $scriptDir/genDomainConfig.sh \
+        ${customDomainYaml} \
+        ${appReplicas} \
+        ${wlsCPU} \
+        ${wlsDomainUID} \
+        ${wlsDomainName} \
+        "${azureACRServer}/aks-wls-images:${newImageTag}" \
+        ${wlsMemory} \
+        ${managedServerPrefix} \
+        ${enableSSL} \
+        ${enablePV} \
+        "${javaOptions}"
+
+    kubectl apply -f ${customDomainYaml}
+
+    wait_for_domain_completed
 }
 
 function wait_for_domain_completed() {
@@ -440,6 +585,8 @@ function cleanup_vm() {
 export script="${BASH_SOURCE[0]}"
 export scriptDir="$(cd "$(dirname "${script}")" && pwd)"
 
+source ${scriptDir}/utility.sh
+
 export ocrSSOUser=$1
 export ocrSSOPSW=$2
 export aksClusterRGName=$3
@@ -472,10 +619,12 @@ export wlsTrustType=${29}
 export gatewayAlias=${30}
 
 export adminServerName="admin-server"
+export azFileShareName="weblogic"
 export exitCode=0
 export ocrLoginServer="container-registry.oracle.com"
 export kubectlSecretForACR="regsecret"
 export kubectlWLSCredentials="${wlsDomainUID}-weblogic-credentials"
+export kubectlWLSSSLCredentials="${wlsDomainUID}-weblogic-ssl-credentials"
 export newImageTag=$(date +%s)
 export storageFileShareName="weblogic"
 export wlsDomainNS="${wlsDomainUID}-ns"
@@ -483,6 +632,14 @@ export wlsOptHelmChart="https://oracle.github.io/weblogic-kubernetes-operator/ch
 export wlsOptNameSpace="weblogic-operator-ns"
 export wlsOptRelease="weblogic-operator"
 export wlsOptSA="weblogic-operator-sa"
+export wlsIdentityKeyStoreFileName="security/identity.keystore"
+export wlsTrustKeyStoreFileName="security/trust.keystore"
+export wlsTrustJKSFileName="security/trust.jks"
+export wlsIdentityRootCertFileName="security/servers/root.cert"
+export wlsDemoIdentityKeyStorePassPhrase="DemoIdentityKeyStorePassPhrase"
+export wlsDemoIndetityKeyAlias="demoidentity"
+export wlsDemoIdentityPassPhrase="DemoIdentityPassPhrase"
+export wlsDemoTrustPassPhrase="DemoTrustKeyStorePassPhrase"
 
 validate_input
 
