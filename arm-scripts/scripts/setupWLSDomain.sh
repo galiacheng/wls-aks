@@ -256,26 +256,22 @@ function build_docker_image() {
 }
 
 function mount_fileshare() {
-    sudo apt update
-    sudo apt install cifs-utils
-
     resourceGroupName="${currentResourceGroup}"
     storageAccountName="${storageAccountName}"
     fileShareName="${azFileShareName}"
 
-    mntRoot="/mount"
+    mntRoot="/wls"
     mntPath="$mntRoot/$storageAccountName/$fileShareName"
 
     sudo mkdir -p $mntPath
 
-    # This command assumes you have logged in with az login
     httpEndpoint=$(az storage account show \
         --resource-group $resourceGroupName \
         --name $storageAccountName \
         --query "primaryEndpoints.file" | tr -d '"')
     smbPath=$(echo $httpEndpoint | cut -c7-$(expr length $httpEndpoint))$fileShareName
 
-    sudo mount -t cifs $smbPath $mntPath -o username=$storageAccountName,password=$storageAccountKey,serverino
+    mount -t cifs $smbPath $mntPath -o username=$storageAccountName,password=$storageAccountKey,serverino
 }
 
 function validate_ssl_keystores() {
@@ -342,7 +338,7 @@ function generate_selfsigned_certificates() {
 
 function output_ssl_keystore() {
     echo "Custom SSL is enabled. Storing CertInfo as files..."
-    if [[ "$wlsIdentityPath" != "null" && "${wlsTrustPath}" != "null" ]]; then
+    if [[ "$wlsIdentityPath" != "null" || "${wlsTrustPath}" != "null" ]]; then
         #decode cert data once again as it would got base64 encoded
         echo "$wlsIdentityData" | base64 --decode >${mntPath}/$wlsIdentityKeyStoreFileName
         echo "$wlsTrustData" | base64 --decode >${mntPath}/$wlsTrustKeyStoreFileName
@@ -440,8 +436,13 @@ function setup_wls_domain() {
 
     export javaOptions=""
     if [[ "${enableSSL,,}" == "true" ]]; then
-        install_jdk
-        export JAVA_HOME=/usr/lib/jvm/msopenjdk-11-amd64
+        # use default Java, if no, install open jdk 11.
+        # why not Microsoft open jdk? No apk installation package!
+        export JAVA_HOME=/usr/lib/jvm/default-jvm/
+        if [ ! -d "${JAVA_HOME}" ]; then
+            install_jdk
+            JAVA_HOME=/usr/lib/jvm/java-11-openjdk
+        fi
 
         mount_fileshare
         output_ssl_keystore
