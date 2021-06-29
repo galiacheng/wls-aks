@@ -161,7 +161,7 @@ function install_utilities() {
     validate_status ${ret}
     ret=$(az account show)
     echo $ret >>stdout
-    if [ -n $(echo ${ret} | grep "systemAssignedIdentity") ]; then
+    if [[ -n $(echo ${ret} | grep "systemAssignedIdentity") ]]; then
         echo_stderr "Make sure you are using user assigned identity."
         exit 1
     fi
@@ -318,6 +318,7 @@ function generate_selfsigned_certificates() {
 
     validate_status "Generate self signed identity keystore with common name: ${gatewayAlias}"
 
+    # update the input variables with Demo values
     wlsIdentityPsw=${wlsDemoIdentityKeyStorePassPhrase}
     wlsIdentityType="PKCS12"
     wlsIdentityAlias=${wlsDemoIndetityKeyAlias}
@@ -340,12 +341,25 @@ function generate_selfsigned_certificates() {
         -storepass ${wlsDemoTrustPassPhrase}
 
     validate_status "Generate trust key store."
+
+    # update the input variables with Demo values
     wlsTrustPsw=${wlsDemoTrustPassPhrase}
     wlsTrustType="PKCS12"
 }
 
 function output_ssl_keystore() {
     echo "Custom SSL is enabled. Storing CertInfo as files..."
+    # Create a folder for certificates
+    securityDir=${mntPath}/security
+    if [ ! -d "${securityDir}" ]; then
+        mkdir ${mntPath}/security
+    else
+        rm -f ${mntPath}/$wlsIdentityKeyStoreFileName
+        rm -f ${mntPath}/$wlsTrustKeyStoreFileName
+        rm -f ${mntPath}/${wlsIdentityRootCertFileName}
+        rm -f ${mntPath}/${wlsTrustJKSFileName}
+    fi
+
     if [[ "$wlsIdentityPath" != "null" || "${wlsTrustPath}" != "null" ]]; then
         #decode cert data once again as it would got base64 encoded
         echo "$wlsIdentityData" | base64 --decode >${mntPath}/$wlsIdentityKeyStoreFileName
