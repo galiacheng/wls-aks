@@ -257,13 +257,15 @@ function build_docker_image() {
 
 function mount_fileshare() {
     resourceGroupName="${currentResourceGroup}"
-    storageAccountName="${storageAccountName}"
     fileShareName="${azFileShareName}"
+
+    # Disable https-only
+    az storage account update --name ${storageAccountName} --resource-group ${resourceGroupName} --https-only false
 
     mntRoot="/wls"
     mntPath="$mntRoot/$storageAccountName/$fileShareName"
 
-    sudo mkdir -p $mntPath
+    mkdir -p $mntPath
 
     httpEndpoint=$(az storage account show \
         --resource-group $resourceGroupName \
@@ -271,7 +273,13 @@ function mount_fileshare() {
         --query "primaryEndpoints.file" | tr -d '"')
     smbPath=$(echo $httpEndpoint | cut -c7-$(expr length $httpEndpoint))$fileShareName
 
-    mount -t cifs $smbPath $mntPath -o username=$storageAccountName,password=$storageAccountKey,serverino
+    mount -t cifs $smbPath $mntPath -o username=$storageAccountName,password=$storageAccountKey,serverino,vers=3.0,file_mode=0777,dir_mode=0777
+    validate_status "Mounting path."
+}
+
+function unmount_fileshare() {
+    # Disable https-only
+    az storage account update --name ${storageAccountName} --resource-group ${resourceGroupName} --https-only true
 }
 
 function validate_ssl_keystores() {
@@ -447,6 +455,8 @@ function setup_wls_domain() {
         mount_fileshare
         output_ssl_keystore
         validate_ssl_keystores
+
+        unmount_fileshare
 
         kubectl -n ${wlsDomainNS} create secret generic ${kubectlWLSSSLCredentials} \
             --from-literal=sslidentitykeyalias=${wlsIdentityAlias} \
