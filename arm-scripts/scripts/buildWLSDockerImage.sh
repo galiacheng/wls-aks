@@ -84,7 +84,6 @@ function initialize() {
     mkdir wlsdeploy
     mkdir wlsdeploy/config
     mkdir wlsdeploy/applications
-    # Store certificates
     mkdir wlsdeploy/domainLibraries
 }
 
@@ -247,8 +246,6 @@ validate_inputs
 initialize
 
 install_utilities
-
-# prepare_certificates
 
 get_wls_image_from_ocr
 

@@ -356,8 +356,8 @@ function output_ssl_keystore() {
 
     if [[ "$wlsIdentityPath" != "null" || "${wlsTrustPath}" != "null" ]]; then
         #decode cert data once again as it would got base64 encoded
-        echo "$wlsIdentityData" | base64 --decode >${mntPath}/$wlsIdentityKeyStoreFileName
-        echo "$wlsTrustData" | base64 --decode >${mntPath}/$wlsTrustKeyStoreFileName
+        echo "$wlsIdentityData" | base64 -d >${mntPath}/$wlsIdentityKeyStoreFileName
+        echo "$wlsTrustData" | base64 -d >${mntPath}/$wlsTrustKeyStoreFileName
         # export root cert.
         ${JAVA_HOME}/bin/keytool -export \
             -alias ${wlsIdentityAlias} \
