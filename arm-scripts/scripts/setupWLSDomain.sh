@@ -159,12 +159,6 @@ function install_utilities() {
     echo "az cli version"
     ret=$(az --version)
     validate_status ${ret}
-    ret=$(az account show)
-    echo $ret >>stdout
-    if [[ -n $(echo ${ret} | grep "systemAssignedIdentity") ]]; then
-        echo_stderr "Make sure you are using user assigned identity."
-        exit 1
-    fi
 }
 
 # Connect to AKS cluster
