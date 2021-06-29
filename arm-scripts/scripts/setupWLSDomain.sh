@@ -351,7 +351,6 @@ function output_ssl_keystore() {
         rm -f ${mntPath}/$wlsIdentityKeyStoreFileName
         rm -f ${mntPath}/$wlsTrustKeyStoreFileName
         rm -f ${mntPath}/${wlsIdentityRootCertFileName}
-        rm -f ${mntPath}/${wlsTrustJKSFileName}
     fi
 
     if [[ "$wlsIdentityPath" != "null" || "${wlsTrustPath}" != "null" ]]; then
@@ -369,14 +368,6 @@ function output_ssl_keystore() {
         echo "generate self signed keystores..."
         generate_selfsigned_certificates
     fi
-
-    # convert trust key store to JKS which will be specified in Java Options
-    ${JAVA_HOME}/bin/keytool \
-        -importkeystore \
-        -srckeystore ${mntPath}/$wlsTrustKeyStoreFileName \
-        -destkeystore ${mntPath}/${wlsTrustJKSFileName} \
-        -deststoretype JKS \
-        -storepass ${wlsTrustPsw}
 
     validate_status "Exporting trust jks file."
 }
@@ -469,14 +460,14 @@ function setup_wls_domain() {
         kubectl -n ${wlsDomainNS} create secret generic ${kubectlWLSSSLCredentials} \
             --from-literal=sslidentitykeyalias=${wlsIdentityAlias} \
             --from-literal=sslidentitykeypassword=${wlsIdentityKeyPsw} \
-            --from-literal=sslidentitystorepath=${mntPath}/$wlsIdentityKeyStoreFileName \
+            --from-literal=sslidentitystorepath=${sharedPath}/$wlsIdentityKeyStoreFileName \
             --from-literal=sslidentitystoretype=${wlsIdentityType} \
-            --from-literal=ssltruststorepath=${mntPath}/${wlsTrustKeyStoreFileName} \
+            --from-literal=ssltruststorepath=${sharedPath}/${wlsTrustKeyStoreFileName} \
             --from-literal=ssltruststoretype=${wlsTrustType} \
             --from-literal=ssltruststorepassword=${wlsTrustPsw}
 
         kubectl -n ${wlsDomainNS} label secret ${kubectlWLSSSLCredentials} weblogic.domainUID=${wlsDomainUID}
-        javaOptions="-Dweblogic.security.SSL.ignoreHostnameVerification=true -Dweblogic.security.SSL.trustedCAKeyStore=${mntPath}/${wlsTrustJKSFileName}"
+        javaOptions="-Dweblogic.security.SSL.ignoreHostnameVerification=true -Dweblogic.security.SSL.trustedCAKeyStore=${sharedPath}/${wlsTrustKeyStoreFileName} -Dweblogic.security.SSL.trustedCAKeyStorePassPhrase=${wlsTrustPsw}"
     fi
 
     # generate domain yaml
@@ -646,6 +637,7 @@ export kubectlWLSCredentials="${wlsDomainUID}-weblogic-credentials"
 export kubectlWLSSSLCredentials="${wlsDomainUID}-weblogic-ssl-credentials"
 export newImageTag=$(date +%s)
 export storageFileShareName="weblogic"
+export sharedPath="/shared"
 export wlsDomainNS="${wlsDomainUID}-ns"
 export wlsOptHelmChart="https://oracle.github.io/weblogic-kubernetes-operator/charts"
 export wlsOptNameSpace="weblogic-operator-ns"
@@ -653,7 +645,6 @@ export wlsOptRelease="weblogic-operator"
 export wlsOptSA="weblogic-operator-sa"
 export wlsIdentityKeyStoreFileName="security/identity.keystore"
 export wlsTrustKeyStoreFileName="security/trust.keystore"
-export wlsTrustJKSFileName="security/trust.jks"
 export wlsIdentityRootCertFileName="security/servers/root.cert"
 export wlsDemoIdentityKeyStorePassPhrase="DemoIdentityKeyStorePassPhrase"
 export wlsDemoIndetityKeyAlias="demoidentity"
