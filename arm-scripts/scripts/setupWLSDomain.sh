@@ -368,8 +368,6 @@ function output_ssl_keystore() {
         echo "generate self signed keystores..."
         generate_selfsigned_certificates
     fi
-
-    validate_status "Exporting trust jks file."
 }
 
 # Create storage for AKS cluster
