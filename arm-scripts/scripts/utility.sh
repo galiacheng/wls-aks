@@ -4,7 +4,7 @@ function install_jdk() {
 
     echo "java version"
     java -version
-    if [ $? -ne 1 ]; then
+    if [ $? -eq 1 ]; then
         exit 1
     fi
     # JAVA_HOME=/usr/lib/jvm/java-11-openjdk
