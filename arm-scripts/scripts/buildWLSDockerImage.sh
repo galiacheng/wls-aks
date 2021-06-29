@@ -85,7 +85,7 @@ function initialize() {
     mkdir wlsdeploy/config
     mkdir wlsdeploy/applications
     # Store certificates
-    mkdir wlsdeploy/servers
+    mkdir wlsdeploy/domainLibraries
 }
 
 # Install docker, zip, unzip and java
@@ -137,6 +137,12 @@ function install_utilities() {
 
     curl -m 120 -fL ${witDownloadURL} -o imagetool.zip
     validate_status "Check status of imagetool.zip."
+
+    curl -m 120 -fL ${wlsPostgresqlDriverUrl} -o ${scriptDir}/model-images/wlsdeploy/domainLibraries/postgresql-42.2.8.jar
+    validate_status "Install postgresql driver."
+
+    curl -m 120 -fL ${wlsMSSQLDriverUrl} -o ${scriptDir}/model-images/wlsdeploy/domainLibraries/mssql-jdbc-7.4.1.jre8.jar
+    validate_status "Install mssql driver."
 }
 
 # Login in OCR
@@ -233,6 +239,8 @@ export acrImagePath="$azureACRServer/aks-wls-images:${imageTag}"
 export ocrLoginServer="container-registry.oracle.com"
 export wdtDownloadURL="https://github.com/oracle/weblogic-deploy-tooling/releases/download/release-1.9.14/weblogic-deploy.zip"
 export witDownloadURL="https://github.com/oracle/weblogic-image-tool/releases/download/release-1.9.12/imagetool.zip"
+export wlsPostgresqlDriverUrl="https://jdbc.postgresql.org/download/postgresql-42.2.8.jar"
+export wlsMSSQLDriverUrl="https://repo.maven.apache.org/maven2/com/microsoft/sqlserver/mssql-jdbc/7.4.1.jre8/mssql-jdbc-7.4.1.jre8.jar"
 
 validate_inputs
 
