@@ -353,7 +353,7 @@ function output_ssl_keystore() {
         rm -f ${mntPath}/${wlsIdentityRootCertFileName}
     fi
 
-    if [[ "$wlsIdentityPath" != "null" || "${wlsTrustPath}" != "null" ]]; then
+    if [[ "$wlsIdentityData" != "null" || "${wlsTrustData}" != "null" ]]; then
         #decode cert data once again as it would got base64 encoded
         echo "$wlsIdentityData" | base64 -d >${mntPath}/$wlsIdentityKeyStoreFileName
         echo "$wlsTrustData" | base64 -d >${mntPath}/$wlsTrustKeyStoreFileName
