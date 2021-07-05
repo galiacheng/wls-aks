@@ -339,6 +339,15 @@ function generate_selfsigned_certificates() {
     # update the input variables with Demo values
     wlsTrustPsw=${wlsDemoTrustPassPhrase}
     wlsTrustType="PKCS12"
+
+    # export JKS file
+    ${JAVA_HOME}/bin/keytool -importkeystore \
+        -srckeystore ${mntPath}/${wlsTrustKeyStoreFileName} \
+        -destkeystore ${mntPath}/${wlsTrustKeyStoreJKSFileName} \
+        -deststoretype jks \
+        -storepass ${wlsDemoTrustPassPhrase}
+        
+    validate_status "Export trust JKS file."
 }
 
 function output_ssl_keystore() {
@@ -351,6 +360,7 @@ function output_ssl_keystore() {
         rm -f ${mntPath}/$wlsIdentityKeyStoreFileName
         rm -f ${mntPath}/$wlsTrustKeyStoreFileName
         rm -f ${mntPath}/${wlsIdentityRootCertFileName}
+        rm -f ${mntPath}/${wlsTrustKeyStoreJKSFileName}
     fi
 
     if [[ "$wlsIdentityData" != "null" || "${wlsTrustData}" != "null" ]]; then
@@ -364,6 +374,8 @@ function output_ssl_keystore() {
             -file ${mntPath}/${wlsIdentityRootCertFileName} \
             -keystore ${mntPath}/$wlsIdentityKeyStoreFileName \
             -storepass ${wlsIdentityPsw}
+
+        # TODO: export jks file
     else
         echo "generate self signed keystores..."
         generate_selfsigned_certificates
@@ -459,13 +471,14 @@ function setup_wls_domain() {
             --from-literal=sslidentitykeyalias=${wlsIdentityAlias} \
             --from-literal=sslidentitykeypassword=${wlsIdentityKeyPsw} \
             --from-literal=sslidentitystorepath=${sharedPath}/$wlsIdentityKeyStoreFileName \
+            --from-literal=sslidentitystorepassword=${wlsIdentityPsw} \
             --from-literal=sslidentitystoretype=${wlsIdentityType} \
             --from-literal=ssltruststorepath=${sharedPath}/${wlsTrustKeyStoreFileName} \
             --from-literal=ssltruststoretype=${wlsTrustType} \
             --from-literal=ssltruststorepassword=${wlsTrustPsw}
 
         kubectl -n ${wlsDomainNS} label secret ${kubectlWLSSSLCredentials} weblogic.domainUID=${wlsDomainUID}
-        javaOptions="-Dweblogic.security.SSL.ignoreHostnameVerification=true -Dweblogic.security.SSL.trustedCAKeyStore=${sharedPath}/${wlsTrustKeyStoreFileName} -Dweblogic.security.SSL.trustedCAKeyStorePassPhrase=${wlsTrustPsw}"
+        javaOptions="-Dweblogic.security.SSL.ignoreHostnameVerification=true -Dweblogic.security.SSL.trustedCAKeyStore=${sharedPath}/${wlsTrustKeyStoreJKSFileName}"
     fi
 
     # generate domain yaml
@@ -643,8 +656,9 @@ export wlsOptRelease="weblogic-operator"
 export wlsOptSA="weblogic-operator-sa"
 export wlsIdentityKeyStoreFileName="security/identity.keystore"
 export wlsTrustKeyStoreFileName="security/trust.keystore"
+export wlsTrustKeyStoreJKSFileName="security/trust.jks"
 export wlsIdentityRootCertFileName="security/root.cert"
-export wlsDemoIdentityKeyStorePassPhrase="DemoIdentityKeyStorePassPhrase"
+export wlsDemoIdentityKeyStorePassPhrase="DemoIdentityPassPhrase"
 export wlsDemoIndetityKeyAlias="demoidentity"
 export wlsDemoIdentityPassPhrase="DemoIdentityPassPhrase"
 export wlsDemoTrustPassPhrase="DemoTrustKeyStorePassPhrase"

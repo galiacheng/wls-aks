@@ -135,9 +135,6 @@ EOF
       requests:
         cpu: "${wlsCPU}"
         memory: "${wlsMemory}"
-      limits:
-         memory: "${wlsMemory}"
-         cpu: "${wlsCPU}"
 EOF
 
     if [[ "${enablePV,,}" == "true" ]]; then

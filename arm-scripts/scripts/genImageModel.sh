@@ -46,9 +46,13 @@ topology:
       ListenPort: 8001
       SSL:
         HostnameVerificationIgnored: true
-        ListenPort: 8001
+        ListenPort: 8002
         Enabled: true
         HostnameVerifier: 'None'
+  
+  SecurityConfiguration:
+    NodeManagerUsername: "@@SECRET:__weblogic-credentials__:username@@"
+    NodeManagerPasswordEncrypted: "@@SECRET:__weblogic-credentials__:password@@"
 
 resources:
   SelfTuning:

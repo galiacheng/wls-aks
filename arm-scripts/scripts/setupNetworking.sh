@@ -556,6 +556,7 @@ export httpsRuleName="myHttpsRule$(date +%s)"
 export perfRetryInterval=30 # seconds
 export perfPodAttemps=5
 export perfSVCAttemps=10
+export sharedPath="/shared"
 export svcAdminServer="${wlsDomainUID}-${adminServerName}"
 export svcCluster="${wlsDomainUID}-cluster-${clusterName}"
 export wlsDomainNS="${wlsDomainUID}-ns"
