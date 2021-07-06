@@ -62,7 +62,7 @@ function output_result() {
 
 #Function to display usage message
 function usage() {
-  echo_stdout "./setupNetworking.sh <aksClusterRGName> <aksClusterName> <wlsDomainName> <wlsDomainUID> <lbSvcValues> <enableAppGWIngress> <subID> <curRGName> <appgwName> <vnetName> <spBase64String> <appgwForAdminServer> <enableCustomDNSAlias> <dnsRGName> <dnsZoneName> <dnsAdminLabel> <dnsClusterLabel> <appgwAlias> <enableInternalLB> "
+  echo_stdout "./setupNetworking.sh <aksClusterRGName> <aksClusterName> <wlsDomainName> <wlsDomainUID> <lbSvcValues> <enableAppGWIngress> <subID> <curRGName> <appgwName> <vnetName> <spBase64String> <appgwForAdminServer> <enableCustomDNSAlias> <dnsRGName> <dnsZoneName> <dnsAdminLabel> <dnsClusterLabel> <appgwAlias> <enableInternalLB> <appgwFrontendSSLCertData> <appgwFrontendSSLCertPsw> "
   if [ $1 -eq 1 ]; then
     exit 1
   fi
@@ -245,14 +245,121 @@ spec:
 EOF
 }
 
+function generate_appgw_cluster_config_file()
+{
+  export clusterIngressName=${wlsDomainUID}-cluster-appgw-ingress-svc
+  export clusterAppgwIngressYamlPath=${scriptDir}/appgw-cluster-ingress-svc.yaml
+  cat <<EOF >${clusterAppgwIngressYamlPath}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ${clusterIngressName}
+  namespace: ${wlsDomainNS}
+  annotations:
+    kubernetes.io/ingress.class: azure/application-gateway
+    appgw.ingress.kubernetes.io/ssl-redirect: "true"
+    appgw.ingress.kubernetes.io/backend-protocol: "https"
+    appgw.ingress.kubernetes.io/backend-hostname: "${appgwAlias}"
+    appgw.ingress.kubernetes.io/appgw-trusted-root-certificate: "${appgwBackendSecretName}"
+
+spec:
+  tls:
+  - secretName: ${appgwFrontendSecretName}
+  rules:
+    - http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: ${svcCluster}
+              port:
+                number: ${clusterTargetPort}
+EOF
+}
+
+function generate_appgw_admin_config_file()
+{
+  export adminIngressName=${wlsDomainUID}-admin-appgw-ingress-svc
+  export adminAppgwIngressYamlPath=${scriptDir}/appgw-admin-ingress-svc.yaml
+  cat <<EOF >${adminAppgwIngressYamlPath}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ${adminIngressName}
+  namespace: ${wlsDomainNS}
+  annotations:
+    kubernetes.io/ingress.class: azure/application-gateway
+    appgw.ingress.kubernetes.io/ssl-redirect: "true"
+    appgw.ingress.kubernetes.io/backend-protocol: "https"
+    appgw.ingress.kubernetes.io/backend-hostname: "${appgwAlias}"
+    appgw.ingress.kubernetes.io/appgw-trusted-root-certificate: "${appgwBackendSecretName}"
+
+spec:
+  tls:
+  - secretName: ${appgwFrontendSecretName}
+  rules:
+    - http:
+        paths:
+        - path: /console*
+          pathType: Prefix
+          backend:
+            service:
+              name: ${svcAdminServer}
+              port:
+                number: ${adminTargetPort}
+EOF
+}
+
+function output_create_gateway_ssl_k8s_secret(){
+  echo "export gateway frontend certificates"
+  echo "$appgwFrontendSSLCertData" | base64 -d >${scriptDir}/$appgwFrontCertFileName
+  openssl pkcs12 \
+    -in ${scriptDir}/$appgwFrontCertFileName \
+    -nocerts \
+    -out ${scriptDir}/$appgwFrontCertKeyFileName \
+    -passin pass:${appgwFrontendSSLCertPsw} \
+    -passout pass:${appgwFrontendSSLCertPsw}
+
+  validate_status "Export key from frontend certificate."
+
+  openssl rsa -in ${scriptDir}/$appgwFrontCertKeyFileName \
+    -out ${scriptDir}/$appgwFrontCertKeyDecrytedFileName \
+    -passin pass:${appgwFrontendSSLCertPsw}
+
+  openssl pkcs12 \
+  -in ${scriptDir}/$appgwFrontCertFileName \
+  -clcerts \
+  -nokeys \
+  -out ${scriptDir}/$appgwFrontPublicCertFileName \
+  -passin pass:${appgwFrontendSSLCertPsw} \
+
+  validate_status "Export cert from frontend certificate."
+
+  echo "create k8s tsl secret for app gateway frontend ssl certificate"
+  kubectl -n ${wlsDomainNS} create secret tls ${appgwFrontendSecretName} \
+    --key="${scriptDir}/$appgwFrontCertKeyDecrytedFileName" \
+    --cert="${scriptDir}/$appgwFrontPublicCertFileName"
+}
+
 function query_admin_target_port() {
-  adminTargetPort=$(kubectl describe service ${svcAdminServer} -n ${wlsDomainNS} | grep 'TargetPort:' | tr -d -c 0-9)
+  if [[ "${enableAppGWIngress,,}" == "true" ]];then
+    adminTargetPort=$(kubectl describe service ${svcAdminServer} -n ${wlsDomainNS} | grep 'default-secure' | tr -d -c 0-9)
+  else
+    adminTargetPort=$(kubectl describe service ${svcAdminServer} -n ${wlsDomainNS} | grep 'TargetPort:' | tr -d -c 0-9)
+  fi
+
   validate_status "Query admin target port."
   echo "Target port of ${adminServerName}: ${adminTargetPort}"
 }
 
 function query_cluster_target_port() {
-  clusterTargetPort=$(kubectl describe service ${svcCluster} -n ${wlsDomainNS} | grep 'TargetPort:' | tr -d -c 0-9)
+  if [[ "${enableAppGWIngress,,}" == "true" ]];then
+    clusterTargetPort=$(kubectl describe service ${svcCluster} -n ${wlsDomainNS} | grep 'default-secure' | tr -d -c 0-9)
+  else
+    clusterTargetPort=$(kubectl describe service ${svcCluster} -n ${wlsDomainNS} | grep 'TargetPort:' | tr -d -c 0-9)
+  fi
+
   validate_status "Query cluster 1 target port."
   echo "Target port of ${clusterName}: ${clusterTargetPort}"
 }
@@ -415,6 +522,8 @@ function network_peers_aks_appgw() {
   validate_status "Associate the route table ${routeTableId} to Application Gateway's subnet ${appGatewaySubnetId}"
 }
 
+
+
 function create_appgw_ingress() {
   if [[ "${enableAppGWIngress,,}" != "true" ]]; then
     return
@@ -487,34 +596,31 @@ function create_appgw_ingress() {
     fi
   done
 
-  # generate ingress svc config for cluster
-  appgwIngressSvcConfig=${scriptDir}/azure-ingress-appgateway-cluster.yaml
-  cp ${scriptDir}/azure-ingress-appgateway.yaml.template ${appgwIngressSvcConfig}
-  ingressSvcName="${wlsDomainUID}-cluster-appgw-ingress-svc"
-  sed -i -e "s:@PATH@:\/:g" ${appgwIngressSvcConfig}
-  sed -i -e "s:@INGRESS_NAME@:${ingressSvcName}:g" ${appgwIngressSvcConfig}
-  sed -i -e "s:@NAMESPACE@:${wlsDomainNS}:g" ${appgwIngressSvcConfig}
-  sed -i -e "s:@CLUSTER_SERVICE_NAME@:${svcCluster}:g" ${appgwIngressSvcConfig}
-  sed -i -e "s:@TARGET_PORT@:${clusterTargetPort}:g" ${appgwIngressSvcConfig}
+  # create tsl secret
+  output_create_gateway_ssl_k8s_secret
 
-  kubectl apply -f ${appgwIngressSvcConfig}
+  # create backend tls secret
+  rootcertPath=${scriptDir}/root.cert
+  kubectl cp -n ${wlsDomainNS} ${wlsDomainUID}-${adminServerName}:${appgwBackendCertPath} ${${scriptDir}/root.cert}
+  validate_status "Copy public key from fileshare."
+
+  az network application-gateway root-cert create \
+    --gateway-name $appgwName  \
+    --resource-group $curRGName \
+    --name ${appgwBackendSecretName} \
+    --cert-file ${rootcertPath}
+
+  # generate ingress svc config for cluster  
+  generate_appgw_cluster_config_file
+  kubectl apply -f ${clusterAppgwIngressYamlPath}
   validate_status "Create appgw ingress svc."
-  waitfor_svc_completed ${ingressSvcName}
+  waitfor_svc_completed ${clusterIngressName}
 
   if [[ ${appgwForAdminServer,,} == "true" ]]; then
-    # generate ingress svc config for admin server
-    appgwIngressSvcConfig=${scriptDir}/azure-ingress-appgateway-admin.yaml
-    cp ${scriptDir}/azure-ingress-appgateway.yaml.template ${appgwIngressSvcConfig}
-    ingressSvcName="${wlsDomainUID}-admin-appgw-ingress-svc"
-    sed -i -e "s:@PATH@:\/console*:g" ${appgwIngressSvcConfig}
-    sed -i -e "s:@INGRESS_NAME@:${ingressSvcName}:g" ${appgwIngressSvcConfig}
-    sed -i -e "s:@NAMESPACE@:${wlsDomainNS}:g" ${appgwIngressSvcConfig}
-    sed -i -e "s:@CLUSTER_SERVICE_NAME@:${svcAdminServer}:g" ${appgwIngressSvcConfig}
-    sed -i -e "s:@TARGET_PORT@:${adminTargetPort}:g" ${appgwIngressSvcConfig}
-
-    kubectl apply -f ${appgwIngressSvcConfig}
+    generate_appgw_admin_config_file
+    kubectl apply -f ${adminAppgwIngressYamlPath}
     validate_status "Create appgw ingress svc."
-    waitfor_svc_completed ${ingressSvcName}
+    waitfor_svc_completed ${adminIngressName}
   fi
 
   create_dns_CNAME_record
@@ -543,11 +649,18 @@ export dnsAdminLabel=${16}
 export dnsClusterLabel=${17}
 export appgwAlias=${18}
 export enableInternalLB=${19}
+export appgwFrontendSSLCertData=${20}
+export appgwFrontendSSLCertPsw=${21}
 
 export adminServerName="admin-server"
 export adminConsoleEndpoint="null"
 export appgwIngressHelmRepo="https://appgwingress.blob.core.windows.net/ingress-azure-helm-package/"
-export appgwSslCertName="appGwSslCertificate"
+export appgwFrontCertFileName="appgw-frontend-cert.pfx"
+export appgwFrontCertKeyDecrytedFileName="appgw-frontend-cert.key"
+export appgwFrontCertKeyFileName="appgw-frontend-cert-decryted.key"
+export appgwFrontPublicCertFileName="appgw-frontend-cert.crt"
+export appgwFrontendSecretName="frontend-tls"
+export appgwBackendSecretName="backend-tls"
 export azureAppgwIngressVersion="1.4.0"
 export clusterName="cluster-1"
 export clusterEndpoint="null"
@@ -560,6 +673,7 @@ export sharedPath="/shared"
 export svcAdminServer="${wlsDomainUID}-${adminServerName}"
 export svcCluster="${wlsDomainUID}-cluster-${clusterName}"
 export wlsDomainNS="${wlsDomainUID}-ns"
+export appgwBackendCertPath="${sharedPath}/security/root.cert"
 
 echo $lbSvcValues
 

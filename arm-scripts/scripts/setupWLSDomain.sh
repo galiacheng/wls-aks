@@ -564,8 +564,7 @@ function wait_for_domain_completed() {
         #    ${domainUID}-${managedServerNameBase}1, e.g. domain1-managed-server1
         #    to
         #    ${domainUID}-${managedServerNameBase}n, e.g. domain1-managed-servern, n = initialManagedServerReplicas
-        # TODO: for ELK interagtion, we have to grep 2/2
-        runningPodCount=$(kubectl -n ${wlsDomainNS} get pods | grep "${wlsDomainUID}" | grep -c "Running" | grep "1/1")
+        runningPodCount=$(kubectl -n ${wlsDomainNS} get pods | grep "${wlsDomainUID}" | grep -c "Running")
         if [[ $runningPodCount -le ${appReplicas} ]]; then svcState="running"; fi
     done
 
