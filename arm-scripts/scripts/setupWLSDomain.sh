@@ -354,9 +354,10 @@ function generate_selfsigned_certificates() {
     ${JAVA_HOME}/bin/keytool -importkeystore \
         -srckeystore ${mntPath}/${wlsTrustKeyStoreFileName} \
         -srcstoretype pkcs12 \
+        -srcstorepass ${wlsDemoTrustPassPhrase} \
         -destkeystore ${mntPath}/${wlsTrustKeyStoreJKSFileName} \
         -deststoretype jks \
-        -storepass ${wlsDemoTrustPassPhrase}
+        -deststorepass ${wlsDemoTrustPassPhrase}
 
     validate_status "Export trust JKS file."
 }
