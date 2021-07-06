@@ -272,6 +272,8 @@ function mount_fileshare() {
 }
 
 function unmount_fileshare() {
+    echo "unmount fileshare."
+    umount ${mntPath}
     # Disable https-only
     az storage account update --name ${storageAccountName} --resource-group ${resourceGroupName} --https-only true
 }
@@ -281,9 +283,9 @@ function validate_ssl_keystores() {
     ${JAVA_HOME}/bin/keytool -list -v \
         -keystore ${mntPath}/$wlsIdentityKeyStoreFileName \
         -storepass $wlsIdentityPsw \
-        -storetype $wlsIdentityType |
-        grep 'Entry type:' |
-        grep 'PrivateKeyEntry'
+        -storetype $wlsIdentityType \
+        | grep 'Entry type:' \
+        | grep 'PrivateKeyEntry'
 
     validate_status "Validate Identity Keystore."
 
@@ -291,9 +293,9 @@ function validate_ssl_keystores() {
     ${JAVA_HOME}/bin/keytool -list -v \
         -keystore ${mntPath}/${wlsTrustKeyStoreFileName} \
         -storepass $wlsTrustPsw \
-        -storetype $wlsTrustType |
-        grep 'Entry type:' |
-        grep 'trustedCertEntry'
+        -storetype $wlsTrustType \
+        | grep 'Entry type:' \
+        | grep 'trustedCertEntry'
 
     validate_status "Validate Trust Keystore."
 
@@ -301,9 +303,16 @@ function validate_ssl_keystores() {
     ${JAVA_HOME}/bin/keytool -list -v \
         -keystore ${mntPath}/${wlsTrustKeyStoreJKSFileName} \
         -storepass $wlsTrustPsw \
-        -storetype jks |
-        grep 'Entry type:' |
-        grep 'trustedCertEntry'
+        -storetype jks \
+        | grep 'Entry type:' \
+        | grep 'trustedCertEntry'
+
+        ${JAVA_HOME}/bin/keytool -list -v \
+        -keystore ${mntPath}/${wlsTrustKeyStoreJKSFileName} \
+        -storepass $wlsTrustPsw \
+        -storetype jks \
+        | grep 'Entry type:' \
+        | grep 'trustedCertEntry'
 
     validate_status "Validate Trust Keystore."
 
@@ -556,7 +565,7 @@ function wait_for_domain_completed() {
         #    to
         #    ${domainUID}-${managedServerNameBase}n, e.g. domain1-managed-servern, n = initialManagedServerReplicas
         # TODO: for ELK interagtion, we have to grep 2/2
-        runningPodCount=$(kubectl -n ${wlsDomainNS} get pods | grep "${wlsDomainUID}" | grep -c "Running") | grep "1/1"
+        runningPodCount=$(kubectl -n ${wlsDomainNS} get pods | grep "${wlsDomainUID}" | grep -c "Running" | grep "1/1")
         if [[ $runningPodCount -le ${appReplicas} ]]; then svcState="running"; fi
     done
 
