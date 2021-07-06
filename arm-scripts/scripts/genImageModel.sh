@@ -34,25 +34,11 @@ topology:
   Server:
     "admin-server":
       ListenPort: 7001
-      SSL:
-        HostnameVerificationIgnored: true
-        ListenPort: 7002
-        Enabled: true
-        HostnameVerifier: 'None'
 
   ServerTemplate:
     "cluster-1-template":
       Cluster: "cluster-1"
       ListenPort: 8001
-      SSL:
-        HostnameVerificationIgnored: true
-        ListenPort: 8002
-        Enabled: true
-        HostnameVerifier: 'None'
-  
-  SecurityConfiguration:
-    NodeManagerUsername: "@@SECRET:__weblogic-credentials__:username@@"
-    NodeManagerPasswordEncrypted: "@@SECRET:__weblogic-credentials__:password@@"
 
 resources:
   SelfTuning:

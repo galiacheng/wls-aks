@@ -277,7 +277,7 @@ function unmount_fileshare() {
 }
 
 function validate_ssl_keystores() {
-    #validate identity keystore
+    #validate if identity keystore has entry
     ${JAVA_HOME}/bin/keytool -list -v \
         -keystore ${mntPath}/$wlsIdentityKeyStoreFileName \
         -storepass $wlsIdentityPsw \
@@ -287,11 +287,21 @@ function validate_ssl_keystores() {
 
     validate_status "Validate Identity Keystore."
 
-    #validate Trust keystore
+    #validate if trust keystore has entry
     ${JAVA_HOME}/bin/keytool -list -v \
         -keystore ${mntPath}/${wlsTrustKeyStoreFileName} \
         -storepass $wlsTrustPsw \
         -storetype $wlsTrustType |
+        grep 'Entry type:' |
+        grep 'trustedCertEntry'
+
+    validate_status "Validate Trust Keystore."
+
+    #validate if trust keystore has entry
+    ${JAVA_HOME}/bin/keytool -list -v \
+        -keystore ${mntPath}/${wlsTrustKeyStoreJKSFileName} \
+        -storepass $wlsTrustPsw \
+        -storetype jks |
         grep 'Entry type:' |
         grep 'trustedCertEntry'
 
@@ -343,10 +353,11 @@ function generate_selfsigned_certificates() {
     # export JKS file
     ${JAVA_HOME}/bin/keytool -importkeystore \
         -srckeystore ${mntPath}/${wlsTrustKeyStoreFileName} \
+        -srcstoretype pkcs12 \
         -destkeystore ${mntPath}/${wlsTrustKeyStoreJKSFileName} \
         -deststoretype jks \
         -storepass ${wlsDemoTrustPassPhrase}
-        
+
     validate_status "Export trust JKS file."
 }
 
@@ -367,7 +378,7 @@ function output_ssl_keystore() {
         #decode cert data once again as it would got base64 encoded
         echo "$wlsIdentityData" | base64 -d >${mntPath}/$wlsIdentityKeyStoreFileName
         echo "$wlsTrustData" | base64 -d >${mntPath}/$wlsTrustKeyStoreFileName
-        # export root cert.
+        # export root cert. Used as gateway backend certificate
         ${JAVA_HOME}/bin/keytool -export \
             -alias ${wlsIdentityAlias} \
             -noprompt \
@@ -375,7 +386,19 @@ function output_ssl_keystore() {
             -keystore ${mntPath}/$wlsIdentityKeyStoreFileName \
             -storepass ${wlsIdentityPsw}
 
-        # TODO: export jks file
+        # export jks file
+        # -Dweblogic.security.SSL.trustedCAKeyStorePassPhrase for PKCS12 is not working correctly
+        # we neet to convert PKCS12 file to JKS file and specify in domain.yaml via -Dweblogic.security.SSL.trustedCAKeyStore
+        if [[ "${wlsTrustType,,}" != "jks" ]]; then
+            ${JAVA_HOME}/bin/keytool -importkeystore \
+                -srckeystore ${mntPath}/${wlsTrustKeyStoreFileName} \
+                -srcstoretype ${wlsTrustType} \
+                -destkeystore ${mntPath}/${wlsTrustKeyStoreJKSFileName} \
+                -deststoretype jks \
+                -storepass ${wlsTrustPsw}
+
+            validate_status "Export trust JKS file."
+        fi
     else
         echo "generate self signed keystores..."
         generate_selfsigned_certificates
@@ -531,7 +554,8 @@ function wait_for_domain_completed() {
         #    ${domainUID}-${managedServerNameBase}1, e.g. domain1-managed-server1
         #    to
         #    ${domainUID}-${managedServerNameBase}n, e.g. domain1-managed-servern, n = initialManagedServerReplicas
-        runningPodCount=$(kubectl -n ${wlsDomainNS} get pods | grep "${wlsDomainUID}" | grep -c "Running")
+        # TODO: for ELK interagtion, we have to grep 2/2
+        runningPodCount=$(kubectl -n ${wlsDomainNS} get pods | grep "${wlsDomainUID}" | grep -c "Running") | grep "1/1"
         if [[ $runningPodCount -le ${appReplicas} ]]; then svcState="running"; fi
     done
 
