@@ -314,6 +314,10 @@ EOF
 function output_create_gateway_ssl_k8s_secret(){
   echo "export gateway frontend certificates"
   echo "$appgwFrontendSSLCertData" | base64 -d >${scriptDir}/$appgwFrontCertFileName
+
+  if [[ "$appgwFrontendSSLCertPsw" == "null" ]];then
+    appgwFrontendSSLCertPsw=""
+  fi
   openssl pkcs12 \
     -in ${scriptDir}/$appgwFrontCertFileName \
     -nocerts \
