@@ -609,7 +609,7 @@ function create_appgw_ingress() {
 
   # create backend tls secret
   rootcertPath=${scriptDir}/root.cert
-  kubectl cp -n ${wlsDomainNS} ${wlsDomainUID}-${adminServerName}:${appgwBackendCertPath} ${${scriptDir}/root.cert}
+  kubectl cp -n ${wlsDomainNS} ${wlsDomainUID}-${adminServerName}:${appgwBackendCertPath} ${rootcertPath}
   validate_status "Copy public key from fileshare."
 
   az network application-gateway root-cert create \
