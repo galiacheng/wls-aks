@@ -315,7 +315,7 @@ function output_create_gateway_ssl_k8s_secret(){
   echo "export gateway frontend certificates"
   echo "$appgwFrontendSSLCertData" | base64 -d >${scriptDir}/$appgwFrontCertFileName
 
-  if [[ "$appgwFrontendSSLCertPsw" == "null" ]];then
+  if [[ "$appgwCertificateOption" == "${appgwSelfsignedCert}" ]];then
     appgwFrontendSSLCertPsw=""
   fi
   openssl pkcs12 \
@@ -655,6 +655,7 @@ export appgwAlias=${18}
 export enableInternalLB=${19}
 export appgwFrontendSSLCertData=${20}
 export appgwFrontendSSLCertPsw=${21}
+export appgwCertificateOption=${22}
 
 export adminServerName="admin-server"
 export adminConsoleEndpoint="null"
@@ -665,6 +666,7 @@ export appgwFrontCertKeyFileName="appgw-frontend-cert-decryted.key"
 export appgwFrontPublicCertFileName="appgw-frontend-cert.crt"
 export appgwFrontendSecretName="frontend-tls"
 export appgwBackendSecretName="backend-tls"
+export appgwSelfsignedCert="generateCert"
 export azureAppgwIngressVersion="1.4.0"
 export clusterName="cluster-1"
 export clusterEndpoint="null"
