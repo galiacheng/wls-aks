@@ -315,15 +315,17 @@ function output_create_gateway_ssl_k8s_secret(){
   echo "export gateway frontend certificates"
   echo "$appgwFrontendSSLCertData" | base64 -d >${scriptDir}/$appgwFrontCertFileName
 
+  appgwFrontendSSLCertPassin=${appgwFrontendSSLCertPsw}
   if [[ "$appgwCertificateOption" == "${appgwSelfsignedCert}" ]];then
-    appgwFrontendSSLCertPsw=""
+    appgwFrontendSSLCertPassin="" # empty password
   fi
+
   openssl pkcs12 \
-    -in ${scriptDir}/$appgwFrontCertFileName \
-    -nocerts \
-    -out ${scriptDir}/$appgwFrontCertKeyFileName \
-    -passin pass:${appgwFrontendSSLCertPsw} \
-    -passout pass:${appgwFrontendSSLCertPsw}
+      -in ${scriptDir}/$appgwFrontCertFileName \
+      -nocerts \
+      -out ${scriptDir}/$appgwFrontCertKeyFileName \
+      -passin pass:${appgwFrontendSSLCertPassin} \
+      -passout pass:${appgwFrontendSSLCertPsw}
 
   validate_status "Export key from frontend certificate."
 
@@ -331,12 +333,14 @@ function output_create_gateway_ssl_k8s_secret(){
     -out ${scriptDir}/$appgwFrontCertKeyDecrytedFileName \
     -passin pass:${appgwFrontendSSLCertPsw}
 
+  validate_status "Decryte private key."
+
   openssl pkcs12 \
   -in ${scriptDir}/$appgwFrontCertFileName \
   -clcerts \
   -nokeys \
   -out ${scriptDir}/$appgwFrontPublicCertFileName \
-  -passin pass:${appgwFrontendSSLCertPsw} \
+  -passin pass:${appgwFrontendSSLCertPassin} \
 
   validate_status "Export cert from frontend certificate."
 
