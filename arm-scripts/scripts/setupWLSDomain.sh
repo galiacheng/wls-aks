@@ -384,7 +384,7 @@ function output_ssl_keystore() {
         rm -f ${mntPath}/${wlsTrustKeyStoreJKSFileName}
     fi
 
-    if [[ "$wlsIdentityData" != "null" || "${wlsTrustData}" != "null" ]]; then
+    if [[ "${enableCustomSSL,,}" == "true" ]]; then
         #decode cert data once again as it would got base64 encoded
         echo "$wlsIdentityData" | base64 -d >${mntPath}/$wlsIdentityKeyStoreFileName
         echo "$wlsTrustData" | base64 -d >${mntPath}/$wlsTrustKeyStoreFileName
@@ -479,7 +479,7 @@ function setup_wls_domain() {
         -n ${wlsDomainNS}
 
     export enablePV=false
-    if [[ "${storageAccountName}" != "null" ]]; then
+    if [[ "${enablePV,,}" == "true" ]]; then
         create_pv
         enablePV=true
     fi
@@ -671,6 +671,8 @@ export wlsTrustData=${27}
 export wlsTrustPsw=${28}
 export wlsTrustType=${29}
 export gatewayAlias=${30}
+export enableCustomSSL=${31}
+export enablePV=${32}
 
 export adminServerName="admin-server"
 export azFileShareName="weblogic"
