@@ -275,7 +275,7 @@ function unmount_fileshare() {
     echo "unmount fileshare."
     umount ${mntPath}
     # Disable https-only
-    az storage account update --name ${storageAccountName} --resource-group ${resourceGroupName} --https-only true
+    az storage account update --name ${storageAccountName} --resource-group ${currentResourceGroup} --https-only true
 }
 
 function validate_ssl_keystores() {
@@ -320,6 +320,9 @@ function validate_ssl_keystores() {
 }
 
 function generate_selfsigned_certificates() {
+    # Note: JDK 8 keytool will create jks by default
+    # JDK 11 keytool will create PKCS12 by default
+    # This file uses JDK 11.
     ${JAVA_HOME}/bin/keytool -genkey \
         -alias ${wlsDemoIndetityKeyAlias} \
         -keyalg RSA -keysize 2048 \
@@ -409,6 +412,8 @@ function output_ssl_keystore() {
                 -deststorepass ${wlsTrustPsw}
 
             validate_status "Export trust JKS file."
+        else
+            echo "$wlsTrustData" | base64 -d >${mntPath}/${wlsTrustKeyStoreJKSFileName}
         fi
     else
         echo "generate self signed keystores..."
