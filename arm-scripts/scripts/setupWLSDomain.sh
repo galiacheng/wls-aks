@@ -403,9 +403,10 @@ function output_ssl_keystore() {
             ${JAVA_HOME}/bin/keytool -importkeystore \
                 -srckeystore ${mntPath}/${wlsTrustKeyStoreFileName} \
                 -srcstoretype ${wlsTrustType} \
+                -srcstorepass ${wlsTrustPsw} \
                 -destkeystore ${mntPath}/${wlsTrustKeyStoreJKSFileName} \
                 -deststoretype jks \
-                -storepass ${wlsTrustPsw}
+                -deststorepass ${wlsTrustPsw}
 
             validate_status "Export trust JKS file."
         fi
