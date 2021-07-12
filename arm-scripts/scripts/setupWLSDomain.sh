@@ -478,10 +478,8 @@ function setup_wls_domain() {
         --docker-password=${azureACRPassword} \
         -n ${wlsDomainNS}
 
-    export enablePV=false
     if [[ "${enablePV,,}" == "true" ]]; then
         create_pv
-        enablePV=true
     fi
 
     export javaOptions=""
