@@ -4,6 +4,7 @@ export scriptDir="$(cd "$(dirname "${script}")" && pwd)"
 
 export filePath=$1
 export appPackageUrls=$2
+export enableCustomSSL=$3
 
 cat <<EOF >${filePath}
 # Copyright (c) 2020, 2021, Oracle and/or its affiliates.
@@ -34,12 +35,70 @@ topology:
   Server:
     "admin-server":
       ListenPort: 7001
+EOF
 
+if [[ "${enableCustomSSL,,}" == "true" ]];then
+  cat <<EOF >>${filePath}
+      SSL:
+        HostnameVerificationIgnored: true
+        ListenPort: 7002
+        Enabled: true
+        HostnameVerifier: 'None'
+        ServerPrivateKeyAlias: "@@ENV:SSL_IDENTITY_PRIVATE_KEY_ALIAS@@"
+        ServerPrivateKeyPassPhraseEncrypted: "@@ENV:SSL_IDENTITY_PRIVATE_KEY_PSW@@"
+      KeyStores: 'CustomIdentityAndCustomTrust'
+      CustomIdentityKeyStoreFileName: "@@ENV:SSL_IDENTITY_PRIVATE_KEYSTORE_PATH@@"
+      CustomIdentityKeyStoreType: "@@ENV:SSL_IDENTITY_PRIVATE_KEYSTORE_TYPE@@"
+      CustomIdentityKeyStorePassPhraseEncrypted: "@@ENV:SSL_IDENTITY_PRIVATE_KEYSTORE_PSW@@"
+      CustomTrustKeyStoreFileName: "@@ENV:SSL_TRUST_KEYSTORE_PATH@@"
+      CustomTrustKeyStoreType: "@@ENV:SSL_TRUST_KEYSTORE_TYPE@@"
+      CustomTrustKeyStorePassPhraseEncrypted: "@@ENV:SSL_TRUST_KEYSTORE_PSW@@"
+EOF
+else
+  cat <<EOF >>${filePath}
+      SSL:
+        ListenPort: 7002
+        Enabled: true
+EOF
+fi
+
+cat <<EOF >>${filePath}
   ServerTemplate:
     "cluster-1-template":
       Cluster: "cluster-1"
       ListenPort: 8001
+EOF
 
+if [[ "${enableCustomSSL,,}" == "true" ]];then
+  cat <<EOF >>${filePath}
+      SSL:
+        HostnameVerificationIgnored: true
+        ListenPort: 8002
+        Enabled: true
+        HostnameVerifier: 'None'
+        ServerPrivateKeyAlias: "@@ENV:SSL_IDENTITY_PRIVATE_KEY_ALIAS@@"
+        ServerPrivateKeyPassPhraseEncrypted: "@@ENV:SSL_IDENTITY_PRIVATE_KEY_PSW@@"
+      KeyStores: 'CustomIdentityAndCustomTrust'
+      CustomIdentityKeyStoreFileName: "@@ENV:SSL_IDENTITY_PRIVATE_KEYSTORE_PATH@@"
+      CustomIdentityKeyStoreType: "@@ENV:SSL_IDENTITY_PRIVATE_KEYSTORE_TYPE@@"
+      CustomIdentityKeyStorePassPhraseEncrypted: "@@ENV:SSL_IDENTITY_PRIVATE_KEYSTORE_PSW@@"
+      CustomTrustKeyStoreFileName: "@@ENV:SSL_TRUST_KEYSTORE_PATH@@"
+      CustomTrustKeyStoreType: "@@ENV:SSL_TRUST_KEYSTORE_TYPE@@"
+      CustomTrustKeyStorePassPhraseEncrypted: "@@ENV:SSL_TRUST_KEYSTORE_PSW@@"
+EOF
+else
+  cat <<EOF >>${filePath}
+      SSL:
+        ListenPort: 8002
+        Enabled: true
+EOF
+fi
+
+cat <<EOF >>${filePath}
+  SecurityConfiguration:
+    NodeManagerUsername: "@@SECRET:__weblogic-credentials__:username@@"
+    NodeManagerPasswordEncrypted: "@@SECRET:__weblogic-credentials__:password@@"
+    
 resources:
   SelfTuning:
     MinThreadsConstraint:

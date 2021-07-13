@@ -165,19 +165,12 @@ EOF
     echo "Starting generating image model file..."
     modelFilePath="$scriptDir/model.yaml"
 
-    if [[ "${enableSSL,,}" == "true" ]]; then
-        chmod ugo+x $scriptDir/genImageModelSSLEnabled.sh
-        bash $scriptDir/genImageModelSSLEnabled.sh \
-            ${modelFilePath} \
-            ${appPackageUrls}
-        validate_status "Generate image ssl model file."
-    else
-        chmod ugo+x $scriptDir/genImageModel.sh
-        bash $scriptDir/genImageModel.sh \
-            ${modelFilePath} \
-            ${appPackageUrls}
-        validate_status "Generate image model file."
-    fi
+    chmod ugo+x $scriptDir/genImageModel.sh
+    bash $scriptDir/genImageModel.sh \
+        ${modelFilePath} \
+        ${appPackageUrls} \
+        ${enableSSL}
+    validate_status "Generate image model file."
 }
 
 # Build weblogic image
