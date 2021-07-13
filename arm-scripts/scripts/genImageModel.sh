@@ -118,8 +118,8 @@ resources:
 EOF
 
 if [ "${appPackageUrls}" == "[]" ]; then
-        return
-    fi
+        exit 0
+fi
 
     cat <<EOF >>${filePath}
 appDeployments:
