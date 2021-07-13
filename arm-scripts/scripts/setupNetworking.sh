@@ -330,6 +330,8 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: azure/application-gateway
 spec:
+  tls:
+  - secretName: ${appgwFrontendSecretName}
   rules:
     - http:
         paths:

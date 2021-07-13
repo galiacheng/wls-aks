@@ -441,7 +441,6 @@ function setup_wls_domain() {
         mount_fileshare
         output_ssl_keystore
         validate_ssl_keystores
-
         unmount_fileshare
 
         kubectl -n ${wlsDomainNS} create secret generic ${kubectlWLSSSLCredentials} \

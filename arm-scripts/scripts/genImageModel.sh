@@ -79,7 +79,7 @@ EOF
         cat <<EOF >>${filePath}
     app${index}:
       SourcePath: 'wlsdeploy/applications/${fileName}'
-      ModuleType: ${fileExtension}
+      ModuleType: ear
       Target: 'cluster-1'
 EOF
         index=$((index + 1))
