@@ -54,12 +54,6 @@ if [[ "${enableCustomSSL,,}" == "true" ]];then
       CustomTrustKeyStoreType: "@@ENV:SSL_TRUST_KEYSTORE_TYPE@@"
       CustomTrustKeyStorePassPhraseEncrypted: "@@ENV:SSL_TRUST_KEYSTORE_PSW@@"
 EOF
-else
-  cat <<EOF >>${filePath}
-      SSL:
-        ListenPort: 7002
-        Enabled: true
-EOF
 fi
 
 cat <<EOF >>${filePath}
@@ -85,12 +79,6 @@ if [[ "${enableCustomSSL,,}" == "true" ]];then
       CustomTrustKeyStoreFileName: "@@ENV:SSL_TRUST_KEYSTORE_PATH@@"
       CustomTrustKeyStoreType: "@@ENV:SSL_TRUST_KEYSTORE_TYPE@@"
       CustomTrustKeyStorePassPhraseEncrypted: "@@ENV:SSL_TRUST_KEYSTORE_PSW@@"
-EOF
-else
-  cat <<EOF >>${filePath}
-      SSL:
-        ListenPort: 8002
-        Enabled: true
 EOF
 fi
 
