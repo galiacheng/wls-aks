@@ -245,7 +245,35 @@ spec:
 EOF
 }
 
-function generate_appgw_cluster_config_file()
+function generate_appgw_cluster_config_file_nossl()
+{
+  export clusterIngressName=${wlsDomainUID}-cluster-appgw-ingress-svc
+  export clusterAppgwIngressYamlPath=${scriptDir}/appgw-cluster-ingress-svc.yaml
+  cat <<EOF >${clusterAppgwIngressYamlPath}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ${clusterIngressName}
+  namespace: ${wlsDomainNS}
+  annotations:
+    kubernetes.io/ingress.class: azure/application-gateway
+spec:
+  tls:
+  - secretName: ${appgwFrontendSecretName}
+  rules:
+    - http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: ${svcCluster}
+              port:
+                number: ${clusterTargetPort}
+EOF
+}
+
+function generate_appgw_cluster_config_file_ssl()
 {
   export clusterIngressName=${wlsDomainUID}-cluster-appgw-ingress-svc
   export clusterAppgwIngressYamlPath=${scriptDir}/appgw-cluster-ingress-svc.yaml
@@ -259,7 +287,18 @@ metadata:
     kubernetes.io/ingress.class: azure/application-gateway
     appgw.ingress.kubernetes.io/ssl-redirect: "true"
     appgw.ingress.kubernetes.io/backend-protocol: "https"
+EOF
+    if [[ "${enableCustomDNSAlias,,}" == "true" ]];then
+    cat <<EOF >>${clusterAppgwIngressYamlPath}
+    appgw.ingress.kubernetes.io/backend-hostname: "${dnsClusterLabel}.${dnsZoneName}"
+EOF
+  else
+    cat <<EOF >>${clusterAppgwIngressYamlPath}
     appgw.ingress.kubernetes.io/backend-hostname: "${appgwAlias}"
+EOF
+  fi
+
+cat <<EOF >>${clusterAppgwIngressYamlPath}
     appgw.ingress.kubernetes.io/appgw-trusted-root-certificate: "${appgwBackendSecretName}"
 
 spec:
@@ -278,7 +317,33 @@ spec:
 EOF
 }
 
-function generate_appgw_admin_config_file()
+function generate_appgw_admin_config_file_nossl()
+{
+  export adminIngressName=${wlsDomainUID}-admin-appgw-ingress-svc
+  export adminAppgwIngressYamlPath=${scriptDir}/appgw-admin-ingress-svc.yaml
+  cat <<EOF >${adminAppgwIngressYamlPath}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ${adminIngressName}
+  namespace: ${wlsDomainNS}
+  annotations:
+    kubernetes.io/ingress.class: azure/application-gateway
+spec:
+  rules:
+    - http:
+        paths:
+        - path: /console*
+          pathType: Prefix
+          backend:
+            service:
+              name: ${svcAdminServer}
+              port:
+                number: ${adminTargetPort}
+EOF
+}
+
+function generate_appgw_admin_config_file_ssl()
 {
   export adminIngressName=${wlsDomainUID}-admin-appgw-ingress-svc
   export adminAppgwIngressYamlPath=${scriptDir}/appgw-admin-ingress-svc.yaml
@@ -292,7 +357,19 @@ metadata:
     kubernetes.io/ingress.class: azure/application-gateway
     appgw.ingress.kubernetes.io/ssl-redirect: "true"
     appgw.ingress.kubernetes.io/backend-protocol: "https"
+EOF
+
+  if [[ "${enableCustomDNSAlias,,}" == "true" ]];then
+    cat <<EOF >>${adminAppgwIngressYamlPath}
+    appgw.ingress.kubernetes.io/backend-hostname: "${dnsAdminLabel}.${dnsZoneName}"
+EOF
+  else
+    cat <<EOF >>${adminAppgwIngressYamlPath}
     appgw.ingress.kubernetes.io/backend-hostname: "${appgwAlias}"
+EOF
+  fi
+
+  cat <<EOF >>${adminAppgwIngressYamlPath}
     appgw.ingress.kubernetes.io/appgw-trusted-root-certificate: "${appgwBackendSecretName}"
 
 spec:
@@ -309,6 +386,22 @@ spec:
               port:
                 number: ${adminTargetPort}
 EOF
+}
+
+function generate_appgw_cluster_config_file() {
+  if [[ "${enableCustomSSL,,}" == "true" ]];then
+    generate_appgw_cluster_config_file_ssl
+  else
+    generate_appgw_cluster_config_file_nossl
+  fi
+}
+
+function generate_appgw_admin_config_file() {
+  if [[ "${enableCustomSSL,,}" == "true" ]];then
+    generate_appgw_admin_config_file_ssl
+  else
+    generate_appgw_admin_config_file_nossl
+  fi
 }
 
 function output_create_gateway_ssl_k8s_secret(){
@@ -607,16 +700,19 @@ function create_appgw_ingress() {
   # create tsl secret
   output_create_gateway_ssl_k8s_secret
 
-  # create backend tls secret
-  rootcertPath=${scriptDir}/root.cert
-  kubectl cp -n ${wlsDomainNS} ${wlsDomainUID}-${adminServerName}:${appgwBackendCertPath} ${rootcertPath}
-  validate_status "Copy public key from fileshare."
+  
+  if [[ "${enableCustomSSL,,}" == "true" ]];then
+    # create backend tls secret
+    rootcertPath=${scriptDir}/root.cert
+    kubectl cp -n ${wlsDomainNS} ${wlsDomainUID}-${adminServerName}:${appgwBackendCertPath} ${rootcertPath}
+    validate_status "Copy public key from fileshare."
 
-  az network application-gateway root-cert create \
-    --gateway-name $appgwName  \
-    --resource-group $curRGName \
-    --name ${appgwBackendSecretName} \
-    --cert-file ${rootcertPath}
+    az network application-gateway root-cert create \
+      --gateway-name $appgwName  \
+      --resource-group $curRGName \
+      --name ${appgwBackendSecretName} \
+      --cert-file ${rootcertPath}
+  fi
 
   # generate ingress svc config for cluster  
   generate_appgw_cluster_config_file
@@ -660,6 +756,7 @@ export enableInternalLB=${19}
 export appgwFrontendSSLCertData=${20}
 export appgwFrontendSSLCertPsw=${21}
 export appgwCertificateOption=${22}
+export enableCustomSSL=${23}
 
 export adminServerName="admin-server"
 export adminConsoleEndpoint="null"

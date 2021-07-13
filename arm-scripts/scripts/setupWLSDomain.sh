@@ -237,7 +237,7 @@ function build_docker_image() {
         --publisher Microsoft.Azure.Extensions \
         --version 2.0 \
         --settings "{ \"fileUris\": [\"${scriptURL}model.properties\",\"${scriptURL}genImageModel.sh\",\"${scriptURL}genImageModelSSLEnabled.sh\",\"${scriptURL}buildWLSDockerImage.sh\"]}" \
-        --protected-settings "{\"commandToExecute\":\"bash buildWLSDockerImage.sh ${wlsImagePath} ${azureACRServer} ${azureACRUserName} ${azureACRPassword} ${newImageTag} \\\"${appPackageUrls}\\\" ${ocrSSOUser} ${ocrSSOPSW} ${wlsClusterSize} ${enableSSL} \"}"
+        --protected-settings "{\"commandToExecute\":\"bash buildWLSDockerImage.sh ${wlsImagePath} ${azureACRServer} ${azureACRUserName} ${azureACRPassword} ${newImageTag} \\\"${appPackageUrls}\\\" ${ocrSSOUser} ${ocrSSOPSW} ${wlsClusterSize} ${enableCustomSSL} \"}"
 
     # If error fires, keep vm resource and exit.
     validate_status "Check status of buiding WLS domain image."
@@ -283,9 +283,9 @@ function validate_ssl_keystores() {
     ${JAVA_HOME}/bin/keytool -list -v \
         -keystore ${mntPath}/$wlsIdentityKeyStoreFileName \
         -storepass $wlsIdentityPsw \
-        -storetype $wlsIdentityType \
-        | grep 'Entry type:' \
-        | grep 'PrivateKeyEntry'
+        -storetype $wlsIdentityType |
+        grep 'Entry type:' |
+        grep 'PrivateKeyEntry'
 
     validate_status "Validate Identity Keystore."
 
@@ -293,9 +293,9 @@ function validate_ssl_keystores() {
     ${JAVA_HOME}/bin/keytool -list -v \
         -keystore ${mntPath}/${wlsTrustKeyStoreFileName} \
         -storepass $wlsTrustPsw \
-        -storetype $wlsTrustType \
-        | grep 'Entry type:' \
-        | grep 'trustedCertEntry'
+        -storetype $wlsTrustType |
+        grep 'Entry type:' |
+        grep 'trustedCertEntry'
 
     validate_status "Validate Trust Keystore."
 
@@ -303,75 +303,20 @@ function validate_ssl_keystores() {
     ${JAVA_HOME}/bin/keytool -list -v \
         -keystore ${mntPath}/${wlsTrustKeyStoreJKSFileName} \
         -storepass $wlsTrustPsw \
-        -storetype jks \
-        | grep 'Entry type:' \
-        | grep 'trustedCertEntry'
+        -storetype jks |
+        grep 'Entry type:' |
+        grep 'trustedCertEntry'
 
-        ${JAVA_HOME}/bin/keytool -list -v \
+    ${JAVA_HOME}/bin/keytool -list -v \
         -keystore ${mntPath}/${wlsTrustKeyStoreJKSFileName} \
         -storepass $wlsTrustPsw \
-        -storetype jks \
-        | grep 'Entry type:' \
-        | grep 'trustedCertEntry'
+        -storetype jks |
+        grep 'Entry type:' |
+        grep 'trustedCertEntry'
 
     validate_status "Validate Trust Keystore."
 
     echo "ValidateSSLKeyStores Successfull !!"
-}
-
-function generate_selfsigned_certificates() {
-    # Note: JDK 8 keytool will create jks by default
-    # JDK 11 keytool will create PKCS12 by default
-    # This file uses JDK 11.
-    ${JAVA_HOME}/bin/keytool -genkey \
-        -alias ${wlsDemoIndetityKeyAlias} \
-        -keyalg RSA -keysize 2048 \
-        -sigalg SHA256withRSA -validity 365 \
-        -keystore ${mntPath}/$wlsIdentityKeyStoreFileName \
-        -keypass ${wlsDemoIdentityPassPhrase} \
-        -storepass ${wlsDemoIdentityKeyStorePassPhrase} \
-        -dname CN=${gatewayAlias}
-
-    validate_status "Generate self signed identity keystore with common name: ${gatewayAlias}"
-
-    # update the input variables with Demo values
-    wlsIdentityPsw=${wlsDemoIdentityKeyStorePassPhrase}
-    wlsIdentityType="PKCS12"
-    wlsIdentityAlias=${wlsDemoIndetityKeyAlias}
-    wlsIdentityKeyPsw=${wlsDemoIdentityPassPhrase}
-
-    ${JAVA_HOME}/bin/keytool -export \
-        -alias ${wlsDemoIndetityKeyAlias} \
-        -noprompt \
-        -file ${mntPath}/${wlsIdentityRootCertFileName} \
-        -keystore ${mntPath}/$wlsIdentityKeyStoreFileName \
-        -storepass ${wlsDemoIdentityKeyStorePassPhrase}
-
-    validate_status "Exporting root cert from identity key store"
-
-    ${JAVA_HOME}/bin/keytool -import \
-        -alias ${wlsDemoIndetityKeyAlias} \
-        -noprompt \
-        -file ${mntPath}/${wlsIdentityRootCertFileName} \
-        -keystore ${mntPath}/${wlsTrustKeyStoreFileName} \
-        -storepass ${wlsDemoTrustPassPhrase}
-
-    validate_status "Generate trust key store."
-
-    # update the input variables with Demo values
-    wlsTrustPsw=${wlsDemoTrustPassPhrase}
-    wlsTrustType="PKCS12"
-
-    # export JKS file
-    ${JAVA_HOME}/bin/keytool -importkeystore \
-        -srckeystore ${mntPath}/${wlsTrustKeyStoreFileName} \
-        -srcstoretype pkcs12 \
-        -srcstorepass ${wlsDemoTrustPassPhrase} \
-        -destkeystore ${mntPath}/${wlsTrustKeyStoreJKSFileName} \
-        -deststoretype jks \
-        -deststorepass ${wlsDemoTrustPassPhrase}
-
-    validate_status "Export trust JKS file."
 }
 
 function output_ssl_keystore() {
@@ -387,37 +332,32 @@ function output_ssl_keystore() {
         rm -f ${mntPath}/${wlsTrustKeyStoreJKSFileName}
     fi
 
-    if [[ "${enableCustomSSL,,}" == "true" ]]; then
-        #decode cert data once again as it would got base64 encoded
-        echo "$wlsIdentityData" | base64 -d >${mntPath}/$wlsIdentityKeyStoreFileName
-        echo "$wlsTrustData" | base64 -d >${mntPath}/$wlsTrustKeyStoreFileName
-        # export root cert. Used as gateway backend certificate
-        ${JAVA_HOME}/bin/keytool -export \
-            -alias ${wlsIdentityAlias} \
-            -noprompt \
-            -file ${mntPath}/${wlsIdentityRootCertFileName} \
-            -keystore ${mntPath}/$wlsIdentityKeyStoreFileName \
-            -storepass ${wlsIdentityPsw}
+    #decode cert data once again as it would got base64 encoded
+    echo "$wlsIdentityData" | base64 -d >${mntPath}/$wlsIdentityKeyStoreFileName
+    echo "$wlsTrustData" | base64 -d >${mntPath}/$wlsTrustKeyStoreFileName
+    # export root cert. Used as gateway backend certificate
+    ${JAVA_HOME}/bin/keytool -export \
+        -alias ${wlsIdentityAlias} \
+        -noprompt \
+        -file ${mntPath}/${wlsIdentityRootCertFileName} \
+        -keystore ${mntPath}/$wlsIdentityKeyStoreFileName \
+        -storepass ${wlsIdentityPsw}
 
-        # export jks file
-        # -Dweblogic.security.SSL.trustedCAKeyStorePassPhrase for PKCS12 is not working correctly
-        # we neet to convert PKCS12 file to JKS file and specify in domain.yaml via -Dweblogic.security.SSL.trustedCAKeyStore
-        if [[ "${wlsTrustType,,}" != "jks" ]]; then
-            ${JAVA_HOME}/bin/keytool -importkeystore \
-                -srckeystore ${mntPath}/${wlsTrustKeyStoreFileName} \
-                -srcstoretype ${wlsTrustType} \
-                -srcstorepass ${wlsTrustPsw} \
-                -destkeystore ${mntPath}/${wlsTrustKeyStoreJKSFileName} \
-                -deststoretype jks \
-                -deststorepass ${wlsTrustPsw}
+    # export jks file
+    # -Dweblogic.security.SSL.trustedCAKeyStorePassPhrase for PKCS12 is not working correctly
+    # we neet to convert PKCS12 file to JKS file and specify in domain.yaml via -Dweblogic.security.SSL.trustedCAKeyStore
+    if [[ "${wlsTrustType,,}" != "jks" ]]; then
+        ${JAVA_HOME}/bin/keytool -importkeystore \
+            -srckeystore ${mntPath}/${wlsTrustKeyStoreFileName} \
+            -srcstoretype ${wlsTrustType} \
+            -srcstorepass ${wlsTrustPsw} \
+            -destkeystore ${mntPath}/${wlsTrustKeyStoreJKSFileName} \
+            -deststoretype jks \
+            -deststorepass ${wlsTrustPsw}
 
-            validate_status "Export trust JKS file."
-        else
-            echo "$wlsTrustData" | base64 -d >${mntPath}/${wlsTrustKeyStoreJKSFileName}
-        fi
+        validate_status "Export trust JKS file."
     else
-        echo "generate self signed keystores..."
-        generate_selfsigned_certificates
+        echo "$wlsTrustData" | base64 -d >${mntPath}/${wlsTrustKeyStoreJKSFileName}
     fi
 }
 
@@ -489,7 +429,7 @@ function setup_wls_domain() {
     fi
 
     export javaOptions=""
-    if [[ "${enableSSL,,}" == "true" ]]; then
+    if [[ "${enableCustomSSL,,}" == "true" ]]; then
         # use default Java, if no, install open jdk 11.
         # why not Microsoft open jdk? No apk installation package!
         export JAVA_HOME=/usr/lib/jvm/default-jvm/
@@ -530,7 +470,7 @@ function setup_wls_domain() {
         "${azureACRServer}/aks-wls-images:${newImageTag}" \
         ${wlsMemory} \
         ${managedServerPrefix} \
-        ${enableSSL} \
+        ${enableCustomSSL} \
         ${enablePV} \
         "${javaOptions}"
 
@@ -665,7 +605,7 @@ export currentResourceGroup=${17}
 export scriptURL=${18}
 export storageAccountName=${19}
 export wlsClusterSize=${20}
-export enableSSL=${21}
+export enableCustomSSL=${21}
 export wlsIdentityData=${22}
 export wlsIdentityPsw=${23}
 export wlsIdentityType=${24}
@@ -675,8 +615,7 @@ export wlsTrustData=${27}
 export wlsTrustPsw=${28}
 export wlsTrustType=${29}
 export gatewayAlias=${30}
-export enableCustomSSL=${31}
-export enablePV=${32}
+export enablePV=${31}
 
 export adminServerName="admin-server"
 export azFileShareName="weblogic"
@@ -697,10 +636,6 @@ export wlsIdentityKeyStoreFileName="security/identity.keystore"
 export wlsTrustKeyStoreFileName="security/trust.keystore"
 export wlsTrustKeyStoreJKSFileName="security/trust.jks"
 export wlsIdentityRootCertFileName="security/root.cert"
-export wlsDemoIdentityKeyStorePassPhrase="DemoIdentityPassPhrase"
-export wlsDemoIndetityKeyAlias="demoidentity"
-export wlsDemoIdentityPassPhrase="DemoIdentityPassPhrase"
-export wlsDemoTrustPassPhrase="DemoTrustKeyStorePassPhrase"
 
 validate_input
 
