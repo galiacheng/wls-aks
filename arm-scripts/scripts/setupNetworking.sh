@@ -253,7 +253,7 @@ function generate_appgw_cluster_config_file_expose_https()
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: ${clusterIngressName}
+  name: ${clusterIngressHttpsName}
   namespace: ${wlsDomainNS}
   annotations:
     kubernetes.io/ingress.class: azure/application-gateway
