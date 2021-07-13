@@ -245,6 +245,34 @@ spec:
 EOF
 }
 
+function generate_appgw_cluster_config_file_expose_https()
+{
+  export clusterIngressHttpsName=${wlsDomainUID}-cluster-appgw-ingress-https-svc
+  export clusterAppgwIngressHttpsYamlPath=${scriptDir}/appgw-cluster-ingress-https-svc.yaml
+  cat <<EOF >${clusterAppgwIngressYamlPath}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ${clusterIngressName}
+  namespace: ${wlsDomainNS}
+  annotations:
+    kubernetes.io/ingress.class: azure/application-gateway
+spec:
+  tls:
+  - secretName: ${appgwFrontendSecretName}
+  rules:
+    - http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: ${svcCluster}
+              port:
+                number: ${clusterTargetPort}
+EOF
+}
+
 function generate_appgw_cluster_config_file_nossl()
 {
   export clusterIngressName=${wlsDomainUID}-cluster-appgw-ingress-svc
@@ -258,8 +286,6 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: azure/application-gateway
 spec:
-  tls:
-  - secretName: ${appgwFrontendSecretName}
   rules:
     - http:
         paths:
@@ -330,8 +356,6 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: azure/application-gateway
 spec:
-  tls:
-  - secretName: ${appgwFrontendSecretName}
   rules:
     - http:
         paths:
@@ -395,6 +419,7 @@ function generate_appgw_cluster_config_file() {
     generate_appgw_cluster_config_file_ssl
   else
     generate_appgw_cluster_config_file_nossl
+    generate_appgw_cluster_config_file_expose_https
   fi
 }
 
@@ -449,7 +474,7 @@ function query_admin_target_port() {
   if [[ "${enableCustomSSL,,}" == "true" ]];then
     adminTargetPort=$(kubectl describe service ${svcAdminServer} -n ${wlsDomainNS} | grep 'default-secure' | tr -d -c 0-9)
   else
-    adminTargetPort=$(kubectl describe service ${svcAdminServer} -n ${wlsDomainNS} | grep 'TargetPort:' | tr -d -c 0-9)
+    adminTargetPort=$(kubectl describe service ${svcAdminServer} -n ${wlsDomainNS} | grep 'default' | tr -d -c 0-9)
   fi
 
   validate_status "Query admin target port."
@@ -460,7 +485,7 @@ function query_cluster_target_port() {
   if [[ "${enableCustomSSL,,}" == "true" ]];then
     clusterTargetPort=$(kubectl describe service ${svcCluster} -n ${wlsDomainNS} | grep 'default-secure' | tr -d -c 0-9)
   else
-    clusterTargetPort=$(kubectl describe service ${svcCluster} -n ${wlsDomainNS} | grep 'TargetPort:' | tr -d -c 0-9)
+    clusterTargetPort=$(kubectl describe service ${svcCluster} -n ${wlsDomainNS} | grep 'default' | tr -d -c 0-9)
   fi
 
   validate_status "Query cluster 1 target port."
@@ -721,6 +746,12 @@ function create_appgw_ingress() {
   kubectl apply -f ${clusterAppgwIngressYamlPath}
   validate_status "Create appgw ingress svc."
   waitfor_svc_completed ${clusterIngressName}
+  # expose https if e2e ssl is not set up.
+  if [[ "${enableCustomSSL,,}" != "true" ]];then
+    kubectl apply -f ${clusterAppgwIngressHttpsYamlPath}
+    validate_status "Create appgw ingress https svc."
+    waitfor_svc_completed ${clusterIngressHttpsName}
+  fi
 
   if [[ ${appgwForAdminServer,,} == "true" ]]; then
     generate_appgw_admin_config_file
