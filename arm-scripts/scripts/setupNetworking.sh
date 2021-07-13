@@ -444,7 +444,7 @@ function output_create_gateway_ssl_k8s_secret(){
 }
 
 function query_admin_target_port() {
-  if [[ "${enableAppGWIngress,,}" == "true" ]];then
+  if [[ "${enableCustomSSL,,}" == "true" ]];then
     adminTargetPort=$(kubectl describe service ${svcAdminServer} -n ${wlsDomainNS} | grep 'default-secure' | tr -d -c 0-9)
   else
     adminTargetPort=$(kubectl describe service ${svcAdminServer} -n ${wlsDomainNS} | grep 'TargetPort:' | tr -d -c 0-9)
@@ -455,7 +455,7 @@ function query_admin_target_port() {
 }
 
 function query_cluster_target_port() {
-  if [[ "${enableAppGWIngress,,}" == "true" ]];then
+  if [[ "${enableCustomSSL,,}" == "true" ]];then
     clusterTargetPort=$(kubectl describe service ${svcCluster} -n ${wlsDomainNS} | grep 'default-secure' | tr -d -c 0-9)
   else
     clusterTargetPort=$(kubectl describe service ${svcCluster} -n ${wlsDomainNS} | grep 'TargetPort:' | tr -d -c 0-9)
