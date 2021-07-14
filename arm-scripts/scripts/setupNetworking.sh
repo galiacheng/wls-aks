@@ -249,7 +249,7 @@ function generate_appgw_cluster_config_file_expose_https()
 {
   export clusterIngressHttpsName=${wlsDomainUID}-cluster-appgw-ingress-https-svc
   export clusterAppgwIngressHttpsYamlPath=${scriptDir}/appgw-cluster-ingress-https-svc.yaml
-  cat <<EOF >${clusterAppgwIngressYamlPath}
+  cat <<EOF >${clusterAppgwIngressHttpsYamlPath}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
