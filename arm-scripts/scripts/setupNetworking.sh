@@ -62,7 +62,7 @@ function output_result() {
 
 #Function to display usage message
 function usage() {
-  echo_stdout "./setupNetworking.sh <aksClusterRGName> <aksClusterName> <wlsDomainName> <wlsDomainUID> <lbSvcValues> <enableAppGWIngress> <subID> <curRGName> <appgwName> <vnetName> <spBase64String> <appgwForAdminServer> <enableCustomDNSAlias> <dnsRGName> <dnsZoneName> <dnsAdminLabel> <dnsClusterLabel> <appgwAlias> <enableInternalLB> <appgwFrontendSSLCertData> <appgwFrontendSSLCertPsw> <appgwCertificateOption> <enableCustomSSL> "
+  echo_stdout "./setupNetworking.sh <aksClusterRGName> <aksClusterName> <wlsDomainName> <wlsDomainUID> <lbSvcValues> <enableAppGWIngress> <subID> <curRGName> <appgwName> <vnetName> <spBase64String> <appgwForAdminServer> <enableCustomDNSAlias> <dnsRGName> <dnsZoneName> <dnsAdminLabel> <dnsClusterLabel> <appgwAlias> <enableInternalLB> <appgwFrontendSSLCertData> <appgwFrontendSSLCertPsw> <appgwCertificateOption> <enableCustomSSL> <enableCookieBasedAffinity> "
   if [ $1 -eq 1 ]; then
     exit 1
   fi
@@ -189,6 +189,11 @@ function validate_input() {
     echo_stderr "enableCustomSSL is required. "
     usage 1
   fi
+
+  if [ -z "$enableCookieBasedAffinity" ]; then
+    echo_stderr "enableCookieBasedAffinity is required. "
+    usage 1
+  fi
 }
 
 function generate_admin_lb_definicion() {
@@ -267,6 +272,15 @@ metadata:
   namespace: ${wlsDomainNS}
   annotations:
     kubernetes.io/ingress.class: azure/application-gateway
+EOF
+
+if [[ "${enableCookieBasedAffinity,,}" == "true" ]];then
+  cat <<EOF >>${clusterAppgwIngressHttpsYamlPath}
+    appgw.ingress.kubernetes.io/cookie-based-affinity: "true"
+EOF
+fi
+
+cat <<EOF >>${clusterAppgwIngressHttpsYamlPath}
 spec:
   tls:
   - secretName: ${appgwFrontendSecretName}
@@ -295,6 +309,15 @@ metadata:
   namespace: ${wlsDomainNS}
   annotations:
     kubernetes.io/ingress.class: azure/application-gateway
+EOF
+
+if [[ "${enableCookieBasedAffinity,,}" == "true" ]];then
+  cat <<EOF >>${clusterAppgwIngressYamlPath}
+    appgw.ingress.kubernetes.io/cookie-based-affinity: "true"
+EOF
+fi
+
+cat <<EOF >>${clusterAppgwIngressYamlPath}
 spec:
   rules:
     - http:
@@ -334,6 +357,12 @@ EOF
 EOF
   fi
 
+  if [[ "${enableCookieBasedAffinity,,}" == "true" ]];then
+  cat <<EOF >>${clusterAppgwIngressYamlPath}
+    appgw.ingress.kubernetes.io/cookie-based-affinity: "true"
+EOF
+fi
+
 cat <<EOF >>${clusterAppgwIngressYamlPath}
     appgw.ingress.kubernetes.io/appgw-trusted-root-certificate: "${appgwBackendSecretName}"
 
@@ -365,6 +394,15 @@ metadata:
   namespace: ${wlsDomainNS}
   annotations:
     kubernetes.io/ingress.class: azure/application-gateway
+EOF
+
+if [[ "${enableCookieBasedAffinity,,}" == "true" ]];then
+  cat <<EOF >>${adminAppgwIngressYamlPath}
+    appgw.ingress.kubernetes.io/cookie-based-affinity: "true"
+EOF
+fi
+
+cat <<EOF >>${adminAppgwIngressYamlPath}
 spec:
   rules:
     - http:
@@ -404,6 +442,12 @@ EOF
     appgw.ingress.kubernetes.io/backend-hostname: "${appgwAlias}"
 EOF
   fi
+
+  if [[ "${enableCookieBasedAffinity,,}" == "true" ]];then
+  cat <<EOF >>${adminAppgwIngressYamlPath}
+    appgw.ingress.kubernetes.io/cookie-based-affinity: "true"
+EOF
+fi
 
   cat <<EOF >>${adminAppgwIngressYamlPath}
     appgw.ingress.kubernetes.io/appgw-trusted-root-certificate: "${appgwBackendSecretName}"
@@ -800,6 +844,7 @@ export appgwFrontendSSLCertData=${20}
 export appgwFrontendSSLCertPsw=${21}
 export appgwCertificateOption=${22}
 export enableCustomSSL=${23}
+export enableCookieBasedAffinity=${24}
 
 export adminServerName="admin-server"
 export adminConsoleEndpoint="null"
