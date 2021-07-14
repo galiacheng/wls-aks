@@ -62,7 +62,7 @@ function output_result() {
 
 #Function to display usage message
 function usage() {
-  echo_stdout "./setupNetworking.sh <aksClusterRGName> <aksClusterName> <wlsDomainName> <wlsDomainUID> <lbSvcValues> <enableAppGWIngress> <subID> <curRGName> <appgwName> <vnetName> <spBase64String> <appgwForAdminServer> <enableCustomDNSAlias> <dnsRGName> <dnsZoneName> <dnsAdminLabel> <dnsClusterLabel> <appgwAlias> <enableInternalLB> <appgwFrontendSSLCertData> <appgwFrontendSSLCertPsw> "
+  echo_stdout "./setupNetworking.sh <aksClusterRGName> <aksClusterName> <wlsDomainName> <wlsDomainUID> <lbSvcValues> <enableAppGWIngress> <subID> <curRGName> <appgwName> <vnetName> <spBase64String> <appgwForAdminServer> <enableCustomDNSAlias> <dnsRGName> <dnsZoneName> <dnsAdminLabel> <dnsClusterLabel> <appgwAlias> <enableInternalLB> <appgwFrontendSSLCertData> <appgwFrontendSSLCertPsw> <appgwCertificateOption> <enableCustomSSL> "
   if [ $1 -eq 1 ]; then
     exit 1
   fi
@@ -177,6 +177,16 @@ function validate_input() {
 
   if [ -z "$enableInternalLB" ]; then
     echo_stderr "enableInternalLB is required. "
+    usage 1
+  fi
+
+  if [[ -z "$appgwFrontendSSLCertData" || "${appgwFrontendSSLCertPsw}"]]; then
+    echo_stderr "appgwFrontendSSLCertData and appgwFrontendSSLCertPsw are required. "
+    usage 1
+  fi
+
+  if [ -z "$enableCustomSSL" ]; then
+    echo_stderr "enableCustomSSL is required. "
     usage 1
   fi
 }

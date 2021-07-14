@@ -16,7 +16,7 @@ function echo_stdout() {
 
 #Function to display usage message
 function usage() {
-    echo_stdout "./setupWLSDomain.sh <ocrSSOUser> <ocrSSOPSW> <aksClusterRGName> <aksClusterName> <wlsImageTag> <acrName> <wlsDomainName> <wlsDomainUID> <wlsUserName> <wlsPassword> <wdtRuntimePassword> <wlsCPU> <wlsMemory> <managedServerPrefix> <appReplicas> <appPackageUrls> <currentResourceGroup> <scriptURL> <storageAccountName> <wlsClusterSize>"
+    echo_stdout "./setupWLSDomain.sh <ocrSSOUser> <ocrSSOPSW> <aksClusterRGName> <aksClusterName> <wlsImageTag> <acrName> <wlsDomainName> <wlsDomainUID> <wlsUserName> <wlsPassword> <wdtRuntimePassword> <wlsCPU> <wlsMemory> <managedServerPrefix> <appReplicas> <appPackageUrls> <currentResourceGroup> <scriptURL> <storageAccountName> <wlsClusterSize> <enableCustomSSL> <wlsIdentityData> <wlsIdentityPsw> <wlsIdentityType> <wlsIdentityAlias> <wlsIdentityKeyPsw> <wlsTrustData> <wlsTrustPsw> <wlsTrustType> <gatewayAlias> <enablePV>"
     if [ $1 -eq 1 ]; then
         exit 1
     fi
@@ -111,6 +111,46 @@ function validate_input() {
 
     if [ -z "$wlsClusterSize" ]; then
         echo_stderr "wlsClusterSize is required. "
+        usage 1
+    fi
+
+    if [ -z "$enableCustomSSL" ]; then
+        echo_stderr "enableCustomSSL is required. "
+        usage 1
+    fi
+
+    if [[ -z "$wlsIdentityData" || -z "${wlsIdentityPsw}" ]]; then
+        echo_stderr "wlsIdentityPsw and wlsIdentityData are required. "
+        usage 1
+    fi
+
+    if [ -z "$wlsIdentityType" ]; then
+        echo_stderr "wlsIdentityType is required. "
+        usage 1
+    fi
+
+    if [[ -z "$wlsIdentityAlias" || -z "${wlsIdentityKeyPsw}" ]]; then
+        echo_stderr "wlsIdentityAlias and wlsIdentityKeyPsw are required. "
+        usage 1
+    fi
+
+    if [[ -z "$wlsTrustData" || -z "${wlsTrustPsw}" ]]; then
+        echo_stderr "wlsIdentityAlias and wlsIdentityKeyPsw are required. "
+        usage 1
+    fi
+
+    if [ -z "$wlsTrustType" ]; then
+        echo_stderr "wlsTrustType is required. "
+        usage 1
+    fi
+
+    if [ -z "$gatewayAlias" ]; then
+        echo_stderr "gatewayAlias is required. "
+        usage 1
+    fi
+
+     if [ -z "$enablePV" ]; then
+        echo_stderr "enablePV is required. "
         usage 1
     fi
 }

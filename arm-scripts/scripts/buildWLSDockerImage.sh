@@ -10,7 +10,7 @@ function echo_stderr() {
 
 #Function to display usage message
 function usage() {
-    echo_stdout "./buildWLSDockerImage.sh <wlsImagePath> <azureACRServer> <azureACRUserName> <azureACRPassword> <imageTag> <appPackageUrls> <ocrSSOUser> <ocrSSOPSW> <wlsClusterSize>"
+    echo_stdout "./buildWLSDockerImage.sh <wlsImagePath> <azureACRServer> <azureACRUserName> <azureACRPassword> <imageTag> <appPackageUrls> <ocrSSOUser> <ocrSSOPSW> <wlsClusterSize> <enableSSL>"
     if [ $1 -eq 1 ]; then
         exit 1
     fi
@@ -68,6 +68,11 @@ function validate_inputs() {
 
     if [ -z "$wlsClusterSize" ]; then
         echo_stderr "wlsClusterSize is required. "
+        usage 1
+    fi
+
+    if [ -z "$enableSSL" ]; then
+        echo_stderr "enableSSL is required. "
         usage 1
     fi
 }
