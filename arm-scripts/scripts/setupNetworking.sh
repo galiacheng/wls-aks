@@ -180,7 +180,7 @@ function validate_input() {
     usage 1
   fi
 
-  if [[ -z "$appgwFrontendSSLCertData" || "${appgwFrontendSSLCertPsw}"]]; then
+  if [[ -z "$appgwFrontendSSLCertData" || -z "${appgwFrontendSSLCertPsw}" ]]; then
     echo_stderr "appgwFrontendSSLCertData and appgwFrontendSSLCertPsw are required. "
     usage 1
   fi
