@@ -1,3 +1,6 @@
+# Copyright (c) 2019, 2020, Oracle Corporation and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl.
+
 # Initialize
 export script="${BASH_SOURCE[0]}"
 export scriptDir="$(cd "$(dirname "${script}")" && pwd)"
@@ -126,7 +129,7 @@ EOF
         cat <<EOF >>${filePath}
     app${index}:
       SourcePath: 'wlsdeploy/applications/${fileName}'
-      ModuleType: ear
+      ModuleType: ${fileExtension}
       Target: 'cluster-1'
 EOF
         index=$((index + 1))

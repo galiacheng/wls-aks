@@ -16,14 +16,14 @@ function echo_stdout() {
 
 function install_helm() {
   # Install helm
-  browserURL=$(curl -s https://api.github.com/repos/helm/helm/releases/latest |
+  browserURL=$(curl -m ${curlMaxTime} -s https://api.github.com/repos/helm/helm/releases/latest |
     grep "browser_download_url.*linux-amd64.tar.gz.asc" |
     cut -d : -f 2,3 |
     tr -d \")
   helmLatestVersion=${browserURL#*download\/}
   helmLatestVersion=${helmLatestVersion%%\/helm*}
   helmPackageName=helm-${helmLatestVersion}-linux-amd64.tar.gz
-  curl -m 120 -fL https://get.helm.sh/${helmPackageName} -o /tmp/${helmPackageName}
+  curl -m ${curlMaxTime} -fL https://get.helm.sh/${helmPackageName} -o /tmp/${helmPackageName}
   tar -zxvf /tmp/${helmPackageName} -C /tmp
   mv /tmp/linux-amd64/helm /usr/local/bin/helm
   echo "helm version"
@@ -820,6 +820,8 @@ function create_appgw_ingress() {
 # Main script
 export script="${BASH_SOURCE[0]}"
 export scriptDir="$(cd "$(dirname "${script}")" && pwd)"
+
+source ${scriptDir}/common.sh
 
 export aksClusterRGName=$1
 export aksClusterName=$2

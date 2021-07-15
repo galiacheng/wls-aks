@@ -182,14 +182,14 @@ function install_utilities() {
     validate_status ${ret}
 
     # Install helm
-    browserURL=$(curl -s https://api.github.com/repos/helm/helm/releases/latest |
+    browserURL=$(curl -m ${curlMaxTime} -s https://api.github.com/repos/helm/helm/releases/latest |
         grep "browser_download_url.*linux-amd64.tar.gz.asc" |
         cut -d : -f 2,3 |
         tr -d \")
     helmLatestVersion=${browserURL#*download\/}
     helmLatestVersion=${helmLatestVersion%%\/helm*}
     helmPackageName=helm-${helmLatestVersion}-linux-amd64.tar.gz
-    curl -m 120 -fL https://get.helm.sh/${helmPackageName} -o /tmp/${helmPackageName}
+    curl -m ${curlMaxTime} -fL https://get.helm.sh/${helmPackageName} -o /tmp/${helmPackageName}
     tar -zxvf /tmp/${helmPackageName} -C /tmp
     mv /tmp/linux-amd64/helm /usr/local/bin/helm
     echo "helm version"
@@ -276,7 +276,7 @@ function build_docker_image() {
         --vm-name ${vmName} \
         --publisher Microsoft.Azure.Extensions \
         --version 2.0 \
-        --settings "{ \"fileUris\": [\"${scriptURL}model.properties\",\"${scriptURL}genImageModel.sh\",\"${scriptURL}buildWLSDockerImage.sh\"]}" \
+        --settings "{ \"fileUris\": [\"${scriptURL}model.properties\",\"${scriptURL}genImageModel.sh\",\"${scriptURL}buildWLSDockerImage.sh\",,\"${scriptURL}common.sh\"]}" \
         --protected-settings "{\"commandToExecute\":\"bash buildWLSDockerImage.sh ${wlsImagePath} ${azureACRServer} ${azureACRUserName} ${azureACRPassword} ${newImageTag} \\\"${appPackageUrls}\\\" ${ocrSSOUser} ${ocrSSOPSW} ${wlsClusterSize} ${enableCustomSSL} \"}"
 
     # If error fires, keep vm resource and exit.
@@ -341,7 +341,7 @@ function validate_ssl_keystores() {
 
     #validate if trust keystore has entry
     ${JAVA_HOME}/bin/keytool -list -v \
-        -keystore ${mntPath}/${wlsTrustKeyStoreJKSFileName} \
+        -keystore ${mntPath}/${wlsTrustKeyStoreFileName} \
         -storepass $wlsTrustPsw \
         -storetype jks |
         grep 'Entry type:' |
@@ -356,7 +356,7 @@ function validate_ssl_keystores() {
 
     validate_status "Validate Trust Keystore."
 
-    echo "ValidateSSLKeyStores Successfull !!"
+    echo "Validate SSL key stores successfull !!"
 }
 
 function output_ssl_keystore() {
@@ -622,6 +622,7 @@ function cleanup_vm() {
 export script="${BASH_SOURCE[0]}"
 export scriptDir="$(cd "$(dirname "${script}")" && pwd)"
 
+source ${scriptDir}/common.sh
 source ${scriptDir}/utility.sh
 
 export ocrSSOUser=$1

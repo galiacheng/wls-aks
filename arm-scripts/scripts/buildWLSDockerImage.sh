@@ -98,7 +98,7 @@ function install_utilities() {
     # Install docker
     sudo apt-get -q update
     sudo apt-get -y -q install apt-transport-https
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+    curl -m ${curlMaxTime} -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
     echo \
         "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
     $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
@@ -136,16 +136,16 @@ function install_utilities() {
     validate_status "Check status of unzip."
 
     # Download weblogic tools
-    curl -m 120 -fL ${wdtDownloadURL} -o weblogic-deploy.zip
+    curl -m ${curlMaxTime} -fL ${wdtDownloadURL} -o weblogic-deploy.zip
     validate_status "Check status of weblogic-deploy.zip."
 
-    curl -m 120 -fL ${witDownloadURL} -o imagetool.zip
+    curl -m ${curlMaxTime} -fL ${witDownloadURL} -o imagetool.zip
     validate_status "Check status of imagetool.zip."
 
-    curl -m 120 -fL ${wlsPostgresqlDriverUrl} -o ${scriptDir}/model-images/wlsdeploy/domainLibraries/postgresql-42.2.8.jar
+    curl -m ${curlMaxTime} -fL ${wlsPostgresqlDriverUrl} -o ${scriptDir}/model-images/wlsdeploy/domainLibraries/postgresql-42.2.8.jar
     validate_status "Install postgresql driver."
 
-    curl -m 120 -fL ${wlsMSSQLDriverUrl} -o ${scriptDir}/model-images/wlsdeploy/domainLibraries/mssql-jdbc-7.4.1.jre8.jar
+    curl -m ${curlMaxTime} -fL ${wlsMSSQLDriverUrl} -o ${scriptDir}/model-images/wlsdeploy/domainLibraries/mssql-jdbc-7.4.1.jre8.jar
     validate_status "Install mssql driver."
 }
 
@@ -220,6 +220,8 @@ function build_wls_image() {
 # Initialize
 export script="${BASH_SOURCE[0]}"
 export scriptDir="$(cd "$(dirname "${script}")" && pwd)"
+
+source ${scriptDir}/common.sh
 
 export wlsImagePath=$1
 export azureACRServer=$2
