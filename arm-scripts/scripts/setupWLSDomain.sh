@@ -276,7 +276,7 @@ function build_docker_image() {
         --vm-name ${vmName} \
         --publisher Microsoft.Azure.Extensions \
         --version 2.0 \
-        --settings "{ \"fileUris\": [\"${scriptURL}model.properties\",\"${scriptURL}genImageModel.sh\",\"${scriptURL}buildWLSDockerImage.sh\",,\"${scriptURL}common.sh\"]}" \
+        --settings "{ \"fileUris\": [\"${scriptURL}model.properties\",\"${scriptURL}genImageModel.sh\",\"${scriptURL}buildWLSDockerImage.sh\",\"${scriptURL}common.sh\"]}" \
         --protected-settings "{\"commandToExecute\":\"bash buildWLSDockerImage.sh ${wlsImagePath} ${azureACRServer} ${azureACRUserName} ${azureACRPassword} ${newImageTag} \\\"${appPackageUrls}\\\" ${ocrSSOUser} ${ocrSSOPSW} ${wlsClusterSize} ${enableCustomSSL} \"}"
 
     # If error fires, keep vm resource and exit.
