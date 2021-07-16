@@ -227,7 +227,7 @@ function validate_existing_operator() {
         ret=$(kubectl get pod -n ${wlsOptNameSpace} | grep "Running" | grep "1/1")
         if [ -n "${ret}" ]; then
             echo "the operator is ready to use."
-            operatorStatus=true
+            operatorStatus=${constTrue}
         else
             echo "the operator is unavailable."
             uninstall_operator
@@ -251,9 +251,9 @@ function install_wls_operator() {
         ret=$(helm repo list)
         validate_status ${ret}
     else
-        export operatorStatus=false
+        export operatorStatus=${constFalse}
         validate_existing_operator
-        if [[ "${operatorStatus}" == "ture" ]]; then
+        if [[ "${operatorStatus}" == "${constTrue}" ]]; then
             return
         fi
     fi
@@ -503,13 +503,13 @@ function setup_wls_domain() {
     echo "check if namespace ${wlsDomainNS} exists?"
     ret=$(kubectl get namespace | grep "${wlsDomainNS}")
 
-    updateNamepace=false
+    updateNamepace=${constFalse}
     if [ -z "${ret}" ]; then
         echo "create namespace ${wlsDomainNS}"
         kubectl create namespace ${wlsDomainNS}
         kubectl label namespace ${wlsDomainNS} weblogic-operator=enabled
     else
-        updateNamepace=true
+        updateNamepace=${constTrue}
         echo "Remove existing secrets and replace with new values"
         kubectl -n ${wlsDomainNS} delete secret ${kubectlWLSCredentials}
         kubectl -n ${wlsDomainNS} delete secret ${kubectlWDTEncryptionSecret}
@@ -535,12 +535,12 @@ function setup_wls_domain() {
 
     kubectl -n ${wlsDomainNS} label secret ${kubectlSecretForACR} weblogic.domainUID=${wlsDomainUID}
 
-    if [[ "${enablePV,,}" == "true" ]]; then
+    if [[ "${enablePV,,}" == "${constTrue}" ]]; then
         create_pv
     fi
 
     export javaOptions=""
-    if [[ "${enableCustomSSL,,}" == "true" ]]; then
+    if [[ "${enableCustomSSL,,}" == "${constTrue}" ]]; then
         # use default Java, if no, install open jdk 11.
         # why not Microsoft open jdk? No apk installation package!
         export JAVA_HOME=/usr/lib/jvm/default-jvm/
@@ -576,7 +576,7 @@ function setup_wls_domain() {
     fi
 
     customDomainYaml=${scriptDir}/custom-domain.yaml
-    if [[ "${updateNamepace}" == "true" ]]; then
+    if [[ "${updateNamepace}" == "${constTrue}" ]]; then
         chmod ugo+x $scriptDir/updateDomainConfig.sh
         bash $scriptDir/updateDomainConfig.sh \
         ${customDomainYaml} \
