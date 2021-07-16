@@ -451,6 +451,16 @@ function output_ssl_keystore() {
 # * Create PV using Azure file share
 # * Create PVC
 function create_pv() {
+    echo "check if pv/pvc have been created."
+    pvcName=${wlsDomainUID}-pvc-azurefile
+    ret=$(kubectl -n ${wlsDomainNS} get pvc ${pvcName} | grep "Bound")
+
+    if [ -n "$ret" ]; then
+        echo "pvc is bound to namespace ${wlsDomainNS}."
+        return
+    fi
+
+    echo "create pv/pvc"
     export storageAccountKey=$(az storage account keys list --resource-group $currentResourceGroup --account-name $storageAccountName --query "[0].value" -o tsv)
     export azureSecretName="azure-secret"
     kubectl -n ${wlsDomainNS} create secret generic ${azureSecretName} \
@@ -463,13 +473,14 @@ function create_pv() {
     pvName=${wlsDomainUID}-pv-azurefile
     sed -i -e "s:@NAMESPACE@:${wlsDomainNS}:g" ${customPVYaml}
     sed -i -e "s:@PV_NME@:${pvName}:g" ${customPVYaml}
+    sed -i -e "s:@STORAGE_ACCOUNT@:${storageAccountName}:g" ${customPVYaml}
 
     # generate pv configurations
     customPVCYaml=${scriptDir}/pvc.yaml
     cp ${scriptDir}/pvc.yaml.template ${customPVCYaml}
-    pvcName=${wlsDomainUID}-pvc-azurefile
     sed -i -e "s:@NAMESPACE@:${wlsDomainNS}:g" ${customPVCYaml}
     sed -i -e "s:@PVC_NAME@:${pvcName}:g" ${customPVCYaml}
+    sed -i -e "s:@STORAGE_ACCOUNT@:${storageAccountName}:g" ${customPVCYaml}
 
     kubectl apply -f ${customPVYaml}
     kubectl apply -f ${customPVCYaml}
