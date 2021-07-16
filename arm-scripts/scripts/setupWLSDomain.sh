@@ -143,7 +143,7 @@ function validate_input() {
         echo_stderr "wlsTrustType is required. "
         usage 1
     fi
-    
+
     if [ -z "$enablePV" ]; then
         echo_stderr "enablePV is required. "
         usage 1
@@ -251,9 +251,11 @@ function install_wls_operator() {
         ret=$(helm repo list)
         validate_status ${ret}
     else
-        operatorStatus=false
+        export operatorStatus=false
         validate_existing_operator
-        if [ "${operatorStatus}" == "ture" ];then return; fi
+        if [[ "${operatorStatus}" == "ture" ]]; then
+            return
+        fi
     fi
 
     echo "install the operator"
@@ -543,7 +545,7 @@ function setup_wls_domain() {
 
         echo "check if exists."
         ret=$(kubectl get secret -n ${wlsDomainNS} | grep "${kubectlWLSSSLCredentials}")
-        if [ -n "${ret}" ];then
+        if [ -n "${ret}" ]; then
             echo "delete secret  ${kubectlWLSSSLCredentials}"
             kubectl -n ${wlsDomainNS} delete secret ${kubectlWLSSSLCredentials}
         fi
@@ -563,7 +565,7 @@ function setup_wls_domain() {
     fi
 
     customDomainYaml=${scriptDir}/custom-domain.yaml
-    if [[ "${updateNamepace}" == "true" ]];then
+    if [[ "${updateNamepace}" == "true" ]]; then
         chmod ugo+x $scriptDir/updateDomainConfig.sh
         bash $scriptDir/updateDomainConfig.sh \
         ${customDomainYaml} \
