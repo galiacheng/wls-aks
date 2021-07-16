@@ -304,6 +304,7 @@ function build_docker_image() {
     --generate-ssh-keys \
     --nsg-rule NONE \
     --enable-agent true \
+    --vnet-name ${vmName}VNET \
     --enable-auto-update false \
     --tags SkipASMAzSecPack=true SkipNRMSCorp=true SkipNRMSDatabricks=true SkipNRMSDB=true SkipNRMSHigh=true SkipNRMSMedium=true SkipNRMSRDPSSH=true SkipNRMSSAW=true SkipNRMSMgmt=true --verbose
 
