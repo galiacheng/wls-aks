@@ -333,11 +333,10 @@ function build_docker_image() {
 }
 
 function mount_fileshare() {
-    resourceGroupName="${currentResourceGroup}"
     fileShareName="${azFileShareName}"
 
     # Disable https-only
-    az storage account update --name ${storageAccountName} --resource-group ${resourceGroupName} --https-only false
+    az storage account update --name ${storageAccountName} --resource-group ${currentResourceGroup} --https-only false
 
     mntRoot="/wls"
     mntPath="$mntRoot/$storageAccountName/$fileShareName"
@@ -346,11 +345,16 @@ function mount_fileshare() {
 
     httpEndpoint=$(
         az storage account show \
-        --resource-group $resourceGroupName \
+        --resource-group $currentResourceGroup \
         --name $storageAccountName \
         --query "primaryEndpoints.file" | tr -d '"'
     )
     smbPath=$(echo $httpEndpoint | cut -c7-$(expr length $httpEndpoint))$fileShareName
+
+    export storageAccountKey=$(az storage account keys list \
+        --resource-group $currentResourceGroup \
+        --account-name $storageAccountName \
+        --query "[0].value" -o tsv)
 
     mount -t cifs $smbPath $mntPath -o username=$storageAccountName,password=$storageAccountKey,serverino,vers=3.0,file_mode=0777,dir_mode=0777
     validate_status "Mounting path."
@@ -535,7 +539,9 @@ function setup_wls_domain() {
 
     kubectl -n ${wlsDomainNS} label secret ${kubectlSecretForACR} weblogic.domainUID=${wlsDomainUID}
 
+    echo "constTrue": "${constTrue}"
     if [[ "${enablePV,,}" == "${constTrue}" ]]; then
+        echo "PV/PVC is enabled. "
         create_pv
     fi
 
