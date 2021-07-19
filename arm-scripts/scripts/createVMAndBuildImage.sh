@@ -81,8 +81,6 @@ function build_docker_image() {
     --enable-auto-update false \
     --tags SkipASMAzSecPack=true SkipNRMSCorp=true SkipNRMSDatabricks=true SkipNRMSDB=true SkipNRMSHigh=true SkipNRMSMedium=true SkipNRMSRDPSSH=true SkipNRMSSAW=true SkipNRMSMgmt=true --verbose
 
-    validate_status "Check status of VM machine to build docker image."
-
     wlsImagePath="${ocrLoginServer}/middleware/weblogic:${wlsImageTag}"
     az vm extension set --name CustomScript \
     --extension-instance-name wls-image-script \
@@ -93,15 +91,14 @@ function build_docker_image() {
     --settings "{ \"fileUris\": [\"${scriptURL}model.properties\",\"${scriptURL}genImageModel.sh\",\"${scriptURL}buildWLSDockerImage.sh\",\"${scriptURL}common.sh\"]}" \
     --protected-settings "{\"commandToExecute\":\"bash buildWLSDockerImage.sh ${wlsImagePath} ${azureACRServer} ${azureACRUserName} ${azureACRPassword} ${newImageTag} \\\"${appPackageUrls}\\\" ${ocrSSOUser} ${ocrSSOPSW} ${wlsClusterSize} ${enableCustomSSL} \"}"
 
-    # If error fires, keep vm resource and exit.
-    validate_status "Check status of buiding WLS domain image."
-
     #Validate image from ACR
     az acr repository show -n ${acrName} --image aks-wls-images:${newImageTag}
-    validate_status "Check if new image aks-wls-images:${newImageTag} has been pushed to acr."
 
     cleanup_vm
 }
+
+# Shell Global settings
+set -e #Exit immediately if a command exits with a non-zero status.
 
 export currentResourceGroup=$1
 export wlsImageTag=$2
