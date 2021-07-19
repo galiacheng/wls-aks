@@ -9,6 +9,8 @@ kind: PersistentVolume
 metadata:
   name: @PV_NME@
   namespace: @NAMESPACE@
+  labels:
+    storageAccount: @STORAGE_ACCOUNT@
 spec:
   capacity:
     storage: 5Gi
