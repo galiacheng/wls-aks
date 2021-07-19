@@ -244,12 +244,12 @@ fi
 
 echo "set secrets"
 if [[ "${secretList}" != "null" ]];then
-  secretLengh=$(cat ${currentConfig} | jq '. | .spec.configuration.secrets | length')
+  secretLength=$(cat ${currentConfig} | jq '. | .spec.configuration.secrets | length')
   cat <<EOF >>$filePath
     secrets:
 EOF
   index=0
-  while [ $index -lt ${secretLengh} ]; do
+  while [ $index -lt ${secretLength} ]; do
     secretItemValue=$(cat ${currentConfig} | jq ". | .spec.configuration.secrets[$index]")
     cat <<EOF >>$filePath
     - ${secretItemValue}

@@ -464,7 +464,8 @@ function create_pv() {
         return
     fi
 
-    echo "create pv/pvc"
+    echo "${pvcName} does not exists."
+    echo "create pv/pvc."
     export storageAccountKey=$(az storage account keys list --resource-group $currentResourceGroup --account-name $storageAccountName --query "[0].value" -o tsv)
     export azureSecretName="azure-secret"
     kubectl -n ${wlsDomainNS} create secret generic ${azureSecretName} \
@@ -625,7 +626,7 @@ function wait_for_domain_completed() {
         svcState="completed"
         attempts=$((attempts + 1))
         echo Waiting for job completed...${attempts}
-        sleep 2m
+        sleep ${checkPodStatusInterval}
 
         # If the job is completed, there should have the following services created,
         #    ${domainUID}-${adminServerName}, e.g. domain1-admin-server
@@ -759,7 +760,6 @@ export enablePV=${30}
 export adminServerName="admin-server"
 export azFileShareName="weblogic"
 export exitCode=0
-export ocrLoginServer="container-registry.oracle.com"
 export kubectlSecretForACR="regsecret"
 export kubectlWLSCredentials="${wlsDomainUID}-weblogic-credentials"
 export kubectlWLSSSLCredentials="${wlsDomainUID}-weblogic-ssl-credentials"
