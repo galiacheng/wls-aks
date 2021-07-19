@@ -15,18 +15,18 @@ function build_docker_image() {
     echo "build a new image including the new applications"
     chmod ugo+x $scriptDir/createVMAndBuildImage.sh
     bash $scriptDir/createVMAndBuildImage.sh \
-        currentResourceGroup \
-        wlsImageTag \
-        azureACRServer \
-        azureACRUserName \
-        azureACRPassword \
-        newImageTag \
-        appPackageUrls \
-        ocrSSOUser \
-        ocrSSOPSW \
-        wlsClusterSize \
-        enableCustomSSL \
-        scriptURL
+        $currentResourceGroup \
+        $wlsImageTag \
+        $azureACRServer \
+        $azureACRUserName \
+        $azureACRPassword \
+        $newImageTag \
+        $appPackageUrls \
+        $ocrSSOUser \
+        $ocrSSOPSW \
+        $wlsClusterSize \
+        $enableCustomSSL \
+        $scriptURL
 }
 
 function apply_new_image() {
