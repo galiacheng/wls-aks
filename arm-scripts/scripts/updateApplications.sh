@@ -110,7 +110,7 @@ export wlsClusterSize=$9
 export enableCustomSSL=${10}
 export currentResourceGroup=${12}
 export appPackageUrls=${13}
-export scriptURL = ${14}
+export scriptURL=${14}
 
 export newImageTag=$(date +%s)
 export wlsDomainNS="${wlsDomainUID}-ns"
