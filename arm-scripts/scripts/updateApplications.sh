@@ -32,6 +32,54 @@ function query_acr_credentials() {
     azureACRPassword=$(az acr credential show -n $acrName --query 'passwords[0].value' -o tsv)
 }
 
+function query_app_urls() {
+    # check if the storage account exists.
+    ret=$(az storage account check-name --name ${appStorageAccountName} \
+        | grep "AlreadyExists")
+    if [ -z "$ret" ]; then
+        echo ${appStorageAccountName} does not exists.
+        return
+    fi
+
+    appList=$(az storage blob list --container-name ${appContainerName} \
+        --account-name ${appStorageAccountName} \
+        | jq '.[] | .name')
+
+    if [ $? == 1 ]; then
+        echo "Failed to query application from ${appContainerName}"
+        return
+    fi
+
+    sasTokenEnd=`date -u -d "${sasTokenValidTime} minutes" '+%Y-%m-%dT%H:%MZ'`
+    sasToken=$(az storage account generate-sas \
+        --permissions r \
+        --account-name ${appStorageAccountName} \
+        --services b \
+        --resource-types c \
+        --expiry $sasTokenEnd -o tsv)
+    
+    get_app_sas_url ${appList}
+}
+
+function get_app_sas_url() {
+    args=("$@")
+    appNumber=$#
+    index=0
+    while [ $index -lt $appNumber ]; then
+        appName=${args[${index}]}
+        if [[ "$appName" == *".war" || "$appName" == *".ear" ]]; then
+            appSaSUrl=$(az storage blob url --container-name ${appContainerName} \
+                --name ${appName} \
+                --account-name ${appStorageAccountName} \
+                --sas-token ${sasToken})
+            echo ${appSaSUrl}
+            appPackageUrls=$(echo "${appPackageUrls}" | jq '. |= ["'${appSaSUrl}'"] + .') # append url
+        fi
+
+        index=$((index+1))
+    fi
+}
+
 function build_docker_image() {
     echo "build a new image including the new applications"
     chmod ugo+x $scriptDir/createVMAndBuildImage.sh
@@ -67,18 +115,22 @@ function wait_for_pod_completed() {
 
     echo "Waiting for $((replicas+1)) pods are running."
 
-    readyPodNum=$(kubectl get pods -n ${wlsDomainNS} -o json \
-        | jq '.items[] | .status.phase' \
-        | grep -c "Running")
-
+    readyPodNum=0
     attempt=0
-    while [[ ${readyPodNum} -le  ${replicas} && $attempt -le ${checkPodStatusMaxAttemps} ]];do
-        sleep ${checkPodStatusInterval}
-        readyPodNum=$(kubectl get pods -n ${wlsDomainNS} -o json \
-        | jq '.items[] | .status.phase' \
-        | grep -c "Running")
+    while [[ ${readyPodNum} -le  ${replicas} && $attempt -le ${checkPodStatusMaxAttemps} ]];do        
+        ret=$(kubectl get pods -n ${wlsDomainNS} -o json \
+            | jq '.items[] | .status.phase' \
+            | grep "Running")
+        if [ -z "${ret}" ];then
+            readyPodNum=0
+        else
+            readyPodNum=$(kubectl get pods -n ${wlsDomainNS} -o json \
+                | jq '.items[] | .status.phase' \
+                | grep -c "Running")
+        fi
         echo "Number of new running pod: ${readyPodNum}"
         attempt=$((attempt+1))
+        sleep ${checkPodStatusInterval}
     done
 
     if [ ${attempt} -gt ${checkPodStatusMaxAttemps} ];then
@@ -93,29 +145,26 @@ function wait_for_image_update_completed() {
     replicas=$(kubectl -n ${wlsDomainNS} get domain ${wlsDomainUID} -o json \
         | jq '. | .spec.clusters[] | .replicas')
     echo "Waiting for $((replicas+1)) new pods created with image ${acrImagePath}"
-    echo "..."
-
-    kubectl get pods -n ${wlsDomainNS} -o json | jq '.items[] | .spec | .containers[] | select(.name == "weblogic-server") | .image'
-
-    kubectl get pods -n ${wlsDomainNS} -o json \
-        | jq '.items[] | .spec | .containers[] | select(.name == "weblogic-server") | .image'
-
-    updatedPodNum=$(kubectl get pods -n ${wlsDomainNS} -o json \
-        | jq '.items[] | .spec | .containers[] | select(.name == "weblogic-server") | .image' \
-        | grep -c "${acrImagePath}")
-
-    echo "current pod num: $updatedPodNum"
-    echo $checkPodStatusMaxAttemps
-
+    
+    updatedPodNum=0
     attempt=0
     while [ ${updatedPodNum} -le  ${replicas} ] && [ $attempt -le ${checkPodStatusMaxAttemps} ];do
         echo "attempts ${attempt}"
-        sleep ${checkPodStatusInterval}
-        updatedPodNum=$(kubectl get pods -n ${wlsDomainNS} -o json \
-        | jq '.items[] | .spec | .containers[] | select(.name == "weblogic-server") | .image' \
-        | grep -c "${acrImagePath}")
+        ret=$(kubectl get pods -n ${wlsDomainNS} -o json \
+            | jq '.items[] | .spec | .containers[] | select(.name == "weblogic-server") | .image' \
+            | grep "${acrImagePath}")
+    
+        if [ -z "${ret}" ];then
+            updatedPodNum=0
+        else
+            updatedPodNum=$(kubectl get pods -n ${wlsDomainNS} -o json \
+                | jq '.items[] | .spec | .containers[] | select(.name == "weblogic-server") | .image' \
+                | grep -c "${acrImagePath}")
+        fi
         echo "Number of new pod: ${updatedPodNum}"
+
         attempt=$((attempt+1))
+        sleep ${checkPodStatusInterval}
     done
 
     if [ ${attempt} -gt ${checkPodStatusMaxAttemps} ];then
@@ -142,9 +191,6 @@ export scriptDir="$(cd "$(dirname "${script}")" && pwd)"
 source ${scriptDir}/common.sh
 source ${scriptDir}/utility.sh
 
-# Shell Global settings
-set -e #Exit immediately if a command exits with a non-zero status.
-
 export ocrSSOUser=$1
 export ocrSSOPSW=$2
 export aksClusterRGName=$3
@@ -156,8 +202,11 @@ export wlsDomainUID=$8
 export currentResourceGroup=$9
 export appPackageUrls=${10}
 export scriptURL=${11}
+export appStorageAccountName=${12}
+export appContainerName=${13}
 
 export newImageTag=$(date +%s)
+export sasTokenValidTime=60 #min
 export sslIdentityEnvName="SSL_IDENTITY_PRIVATE_KEY_ALIAS"
 export wlsClusterName="cluster-1"
 export wlsDomainNS="${wlsDomainUID}-ns"
