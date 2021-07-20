@@ -113,6 +113,8 @@ export wlsClusterSize=${10}
 export enableCustomSSL=${11}
 export scriptURL=${12}
 
+echo ${scriptURL}
+
 build_docker_image
 
 

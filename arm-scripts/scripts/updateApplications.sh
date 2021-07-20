@@ -3,6 +3,23 @@
 
 echo "Script ${0} starts"
 
+# Connect to AKS cluster
+function connect_aks_cluster() {
+    az aks get-credentials --resource-group ${aksClusterRGName} --name ${aksClusterName} --overwrite-existing
+}
+
+function query_wls_cluster_info(){
+    wlsClusterSize=$(kubectl -n ${wlsDomainNS} get domain ${wlsDomainUID} -o json 
+        | jq '. | .status.clusters[] | select(.clusterName == "'${wlsClusterName}'") | .maximumReplicas')
+    
+    enableCustomSSL=${constFalse}
+    sslIdentityEnv=$(kubectl -n ${wlsDomainNS} get domain ${wlsDomainUID} -o json 
+        | jq '. | .spec.serverPod.env[] | select(.name=="'${sslIdentityEnvName}'")')
+    if [ -n "${sslIdentityEnv}" ]; then
+        enableCustomSSL=${constTrue}
+    fi
+}
+
 # Query ACR login server, username, password
 function query_acr_credentials() {
     echo "query credentials of ACR ${acrName}"
@@ -21,12 +38,12 @@ function build_docker_image() {
         $azureACRUserName \
         $azureACRPassword \
         $newImageTag \
-        $appPackageUrls \
+        "$appPackageUrls" \
         $ocrSSOUser \
         $ocrSSOPSW \
         $wlsClusterSize \
         $enableCustomSSL \
-        $scriptURL
+        "$scriptURL"
 }
 
 function apply_new_image() {
@@ -106,16 +123,20 @@ export wlsImageTag=$5
 export acrName=$6
 export wlsDomainName=$7
 export wlsDomainUID=$8
-export wlsClusterSize=$9
-export enableCustomSSL=${10}
-export currentResourceGroup=${11}
-export appPackageUrls=${12}
-export scriptURL=${13}
+export currentResourceGroup=$9
+export appPackageUrls=${10}
+export scriptURL=${11}
 
 export newImageTag=$(date +%s)
+export sslIdentityEnvName="SSL_IDENTITY_PRIVATE_KEY_ALIAS"
+export wlsClusterName="cluster-1"
 export wlsDomainNS="${wlsDomainUID}-ns"
 
 install_kubectl
+
+connect_aks_cluster
+
+query_wls_cluster_info
 
 build_docker_image
 
