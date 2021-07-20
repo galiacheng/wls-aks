@@ -5,7 +5,10 @@ echo "Script ${0} starts"
 
 # Connect to AKS cluster
 function connect_aks_cluster() {
-    az aks get-credentials --resource-group ${aksClusterRGName} --name ${aksClusterName} --overwrite-existing
+    az aks get-credentials \
+        --resource-group ${aksClusterRGName} \
+        --name ${aksClusterName} \
+        --overwrite-existing
 }
 
 function query_wls_cluster_info(){
@@ -61,17 +64,20 @@ function wait_for_pod_completed() {
     # Make sure all of the pods are running.
     replicas=$(kubectl -n ${wlsDomainNS} get domain ${wlsDomainUID} -o json \
         | jq '. | .spec.clusters[] | .replicas')
+
+    echo "Waiting for $((replicas+1)) pods are running."
+
     readyPodNum=$(kubectl get pods -n ${wlsDomainNS} -o json \
         | jq '.items[] | .status.phase' \
         | grep -c "Running")
 
     attempt=0
-    while [[ ${readyPodNum} -le  ${replicas} && attempt -le ${checkPodStatusMaxAttemps} ]];do
+    while [[ ${readyPodNum} -le  ${replicas} && $attempt -le ${checkPodStatusMaxAttemps} ]];do
         sleep ${checkPodStatusInterval}
         readyPodNum=$(kubectl get pods -n ${wlsDomainNS} -o json \
         | jq '.items[] | .status.phase' \
         | grep -c "Running")
-
+        echo "Number of new running pod: ${readyPodNum}"
         attempt=$((attempt+1))
     done
 
@@ -86,17 +92,19 @@ function wait_for_image_update_completed() {
     # Assumption: we have only one cluster currently.
     replicas=$(kubectl -n ${wlsDomainNS} get domain ${wlsDomainUID} -o json \
         | jq '. | .spec.clusters[] | .replicas')
+    echo "Waiting for $((replicas+1)) pods created with image ${acrImagePath}"
+
     updatedPodNum=$(kubectl get pods -n ${wlsDomainNS} -o json \
         | jq '.items[] | .spec | .containers[] | select(.name == "weblogic-server") | .image' \
         | grep -c "${acrImagePath}")
 
     attempt=0
-    while [[ ${updatedPodNum} -le  ${replicas} && attempt -le ${checkPodStatusMaxAttemps} ]];do
+    while [[ ${updatedPodNum} -le  ${replicas} && $attempt -le ${checkPodStatusMaxAttemps} ]];do
         sleep ${checkPodStatusInterval}
         updatedPodNum=$(kubectl get pods -n ${wlsDomainNS} -o json \
         | jq '.items[] | .spec | .containers[] | select(.name == "weblogic-server") | .image' \
         | grep -c "${acrImagePath}")
-
+        echo "Number of new pod: ${updatedPodNum}"
         attempt=$((attempt+1))
     done
 
