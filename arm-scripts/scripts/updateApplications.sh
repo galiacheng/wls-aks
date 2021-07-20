@@ -38,6 +38,7 @@ function get_app_sas_url() {
     index=0
     while [ $index -lt $appNumber ]; do
         appName=${args[${index}]}
+        echo "app package file name: ${appName}"
         if [[ "$appName" == *".war" || "$appName" == *".ear" ]]; then
             appSaSUrl=$(az storage blob url --container-name ${appContainerName} \
                 --name ${appName} \
@@ -52,7 +53,7 @@ function get_app_sas_url() {
 }
 
 function query_app_urls() {
-    # check if the storage account exists.
+    echo "check if the storage account exists."
     ret=$(az storage account check-name --name ${appStorageAccountName} \
         | grep "AlreadyExists")
     if [ -z "$ret" ]; then
@@ -179,7 +180,7 @@ function output_image() {
 
   result=$(jq -n -c \
     --arg image $acrImagePath \
-    '{image: $image')
+    '{image: $image}')
   echo "output of deployment script: $result"
   echo $result >$AZ_SCRIPTS_OUTPUT_PATH
 }
