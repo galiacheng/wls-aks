@@ -9,12 +9,12 @@ function connect_aks_cluster() {
 }
 
 function query_wls_cluster_info(){
-    wlsClusterSize=$(kubectl -n ${wlsDomainNS} get domain ${wlsDomainUID} -o json 
+    wlsClusterSize=$(kubectl -n ${wlsDomainNS} get domain ${wlsDomainUID} -o json \
         | jq '. | .status.clusters[] | select(.clusterName == "'${wlsClusterName}'") | .maximumReplicas')
     echo "cluster size: ${wlsClusterSize}"
     
     enableCustomSSL=${constFalse}
-    sslIdentityEnv=$(kubectl -n ${wlsDomainNS} get domain ${wlsDomainUID} -o json 
+    sslIdentityEnv=$(kubectl -n ${wlsDomainNS} get domain ${wlsDomainUID} -o json \
         | jq '. | .spec.serverPod.env[] | select(.name=="'${sslIdentityEnvName}'")')
     if [ -n "${sslIdentityEnv}" ]; then
         enableCustomSSL=${constTrue}
@@ -59,17 +59,17 @@ function apply_new_image() {
 
 function wait_for_pod_completed() {
     # Make sure all of the pods are running.
-    replicas=$(kubectl -n ${wlsDomainNS} get domain ${wlsDomainUID} -o json 
+    replicas=$(kubectl -n ${wlsDomainNS} get domain ${wlsDomainUID} -o json \
         | jq '. | .spec.clusters[] | .replicas')
-    readyPodNum=$(kubectl get pods -n ${wlsDomainNS} -o json  
-        | jq '.items[] | .status.phase' 
+    readyPodNum=$(kubectl get pods -n ${wlsDomainNS} -o json \
+        | jq '.items[] | .status.phase' \
         | grep -c "Running")
 
     attempt=0
     while [[ ${readyPodNum} -le  ${replicas} && attempt -le ${checkPodStatusMaxAttemps} ]];do
         sleep ${checkPodStatusInterval}
-        readyPodNum=$(kubectl get pods -n ${wlsDomainNS} -o json  
-        | jq '.items[] | .status.phase' 
+        readyPodNum=$(kubectl get pods -n ${wlsDomainNS} -o json \
+        | jq '.items[] | .status.phase' \
         | grep -c "Running")
 
         attempt=$((attempt+1))
@@ -84,17 +84,17 @@ function wait_for_pod_completed() {
 function wait_for_image_update_completed() {
     # Make sure all of the pods are updated with new image.
     # Assumption: we have only one cluster currently.
-    replicas=$(kubectl -n ${wlsDomainNS} get domain ${wlsDomainUID} -o json 
+    replicas=$(kubectl -n ${wlsDomainNS} get domain ${wlsDomainUID} -o json \
         | jq '. | .spec.clusters[] | .replicas')
-    updatedPodNum=$(kubectl get pods -n ${wlsDomainNS} -o json 
-        | jq '.items[] | .spec | .containers[] | select(.name == "weblogic-server") | .image'
+    updatedPodNum=$(kubectl get pods -n ${wlsDomainNS} -o json \
+        | jq '.items[] | .spec | .containers[] | select(.name == "weblogic-server") | .image' \
         | grep -c "${acrImagePath}")
 
     attempt=0
     while [[ ${updatedPodNum} -le  ${replicas} && attempt -le ${checkPodStatusMaxAttemps} ]];do
         sleep ${checkPodStatusInterval}
-        updatedPodNum=$(kubectl get pods -n ${wlsDomainNS} -o json 
-        | jq '.items[] | .spec | .containers[] | select(.name == "weblogic-server") | .image'
+        updatedPodNum=$(kubectl get pods -n ${wlsDomainNS} -o json \
+        | jq '.items[] | .spec | .containers[] | select(.name == "weblogic-server") | .image' \
         | grep -c "${acrImagePath}")
 
         attempt=$((attempt+1))
@@ -138,6 +138,8 @@ install_kubectl
 connect_aks_cluster
 
 query_wls_cluster_info
+
+query_acr_credentials
 
 build_docker_image
 
