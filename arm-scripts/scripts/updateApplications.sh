@@ -98,8 +98,12 @@ function wait_for_image_update_completed() {
         | jq '.items[] | .spec | .containers[] | select(.name == "weblogic-server") | .image' \
         | grep -c "${acrImagePath}")
 
+    echo "current pod num: $updatedPodNum"
+    echo $checkPodStatusMaxAttemps
+
     attempt=0
-    while [[ ${updatedPodNum} -le  ${replicas} && $attempt -le ${checkPodStatusMaxAttemps} ]];do
+    while [ ${updatedPodNum} -le  ${replicas} ] && [ $attempt -le ${checkPodStatusMaxAttemps} ];do
+        echo "attempts ${attempt}"
         sleep ${checkPodStatusInterval}
         updatedPodNum=$(kubectl get pods -n ${wlsDomainNS} -o json \
         | jq '.items[] | .spec | .containers[] | select(.name == "weblogic-server") | .image' \
@@ -112,6 +116,17 @@ function wait_for_image_update_completed() {
         echo "Failed to update with image ${acrImagePath} to all weblogic server pods. "
         exit 1
     fi
+}
+
+#Output value to deployment scripts
+function output_image() {
+  echo ${acrImagePath}
+
+  result=$(jq -n -c \
+    --arg image $acrImagePath \
+    '{image: $image')
+  echo "output of deployment script: $result"
+  echo $result >$AZ_SCRIPTS_OUTPUT_PATH
 }
 
 # Main script
@@ -156,3 +171,5 @@ apply_new_image
 wait_for_image_update_completed
 
 wait_for_pod_completed
+
+output_image
