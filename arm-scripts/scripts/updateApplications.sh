@@ -95,6 +95,11 @@ function wait_for_image_update_completed() {
     echo "Waiting for $((replicas+1)) new pods created with image ${acrImagePath}"
     echo "..."
 
+    kubectl get pods -n ${wlsDomainNS} -o json | jq '.items[] | .spec | .containers[] | select(.name == "weblogic-server") | .image'
+
+    kubectl get pods -n ${wlsDomainNS} -o json \
+        | jq '.items[] | .spec | .containers[] | select(.name == "weblogic-server") | .image'
+
     updatedPodNum=$(kubectl get pods -n ${wlsDomainNS} -o json \
         | jq '.items[] | .spec | .containers[] | select(.name == "weblogic-server") | .image' \
         | grep -c "${acrImagePath}")
