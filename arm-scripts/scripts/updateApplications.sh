@@ -92,7 +92,7 @@ function wait_for_image_update_completed() {
     # Assumption: we have only one cluster currently.
     replicas=$(kubectl -n ${wlsDomainNS} get domain ${wlsDomainUID} -o json \
         | jq '. | .spec.clusters[] | .replicas')
-    echo "Waiting for $((replicas+1)) pods created with image ${acrImagePath}"
+    echo "Waiting for $((replicas+1)) new pods created with image ${acrImagePath}"
 
     updatedPodNum=$(kubectl get pods -n ${wlsDomainNS} -o json \
         | jq '.items[] | .spec | .containers[] | select(.name == "weblogic-server") | .image' \
