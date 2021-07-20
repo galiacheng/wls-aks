@@ -32,12 +32,31 @@ function query_acr_credentials() {
     azureACRPassword=$(az acr credential show -n $acrName --query 'passwords[0].value' -o tsv)
 }
 
+function get_app_sas_url() {
+    args=("$@")
+    appNumber=$#
+    index=0
+    while [ $index -lt $appNumber ]; do
+        appName=${args[${index}]}
+        if [[ "$appName" == *".war" || "$appName" == *".ear" ]]; then
+            appSaSUrl=$(az storage blob url --container-name ${appContainerName} \
+                --name ${appName} \
+                --account-name ${appStorageAccountName} \
+                --sas-token ${sasToken})
+            echo ${appSaSUrl}
+            appPackageUrls=$(echo "${appPackageUrls}" | jq '. |= ["'${appSaSUrl}'"] + .') # append url
+        fi
+
+        index=$((index+1))
+    done
+}
+
 function query_app_urls() {
     # check if the storage account exists.
     ret=$(az storage account check-name --name ${appStorageAccountName} \
         | grep "AlreadyExists")
     if [ -z "$ret" ]; then
-        echo ${appStorageAccountName} does not exists.
+        echo "${appStorageAccountName} does not exist."
         return
     fi
 
@@ -59,25 +78,6 @@ function query_app_urls() {
         --expiry $sasTokenEnd -o tsv)
     
     get_app_sas_url ${appList}
-}
-
-function get_app_sas_url() {
-    args=("$@")
-    appNumber=$#
-    index=0
-    while [ $index -lt $appNumber ]; then
-        appName=${args[${index}]}
-        if [[ "$appName" == *".war" || "$appName" == *".ear" ]]; then
-            appSaSUrl=$(az storage blob url --container-name ${appContainerName} \
-                --name ${appName} \
-                --account-name ${appStorageAccountName} \
-                --sas-token ${sasToken})
-            echo ${appSaSUrl}
-            appPackageUrls=$(echo "${appPackageUrls}" | jq '. |= ["'${appSaSUrl}'"] + .') # append url
-        fi
-
-        index=$((index+1))
-    fi
 }
 
 function build_docker_image() {
@@ -218,6 +218,8 @@ connect_aks_cluster
 query_wls_cluster_info
 
 query_acr_credentials
+
+query_app_urls
 
 build_docker_image
 
