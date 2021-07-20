@@ -11,6 +11,7 @@ function connect_aks_cluster() {
 function query_wls_cluster_info(){
     wlsClusterSize=$(kubectl -n ${wlsDomainNS} get domain ${wlsDomainUID} -o json 
         | jq '. | .status.clusters[] | select(.clusterName == "'${wlsClusterName}'") | .maximumReplicas')
+    echo "cluster size: ${wlsClusterSize}"
     
     enableCustomSSL=${constFalse}
     sslIdentityEnv=$(kubectl -n ${wlsDomainNS} get domain ${wlsDomainUID} -o json 
