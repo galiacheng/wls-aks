@@ -10,13 +10,46 @@ function echo_stderr() {
 }
 
 function echo_stdout() {
-    echo "$@" >&2
+    echo "$@"
     echo "$@" >>stdout
 }
 
 #Function to display usage message
 function usage() {
-    echo_stdout "./setupWLSDomain.sh <ocrSSOUser> <ocrSSOPSW> <aksClusterRGName> <aksClusterName> <wlsImageTag> <acrName> <wlsDomainName> <wlsDomainUID> <wlsUserName> <wlsPassword> <wdtRuntimePassword> <wlsCPU> <wlsMemory> <managedServerPrefix> <appReplicas> <appPackageUrls> <currentResourceGroup> <scriptURL> <storageAccountName> <wlsClusterSize> <enableCustomSSL> <wlsIdentityData> <wlsIdentityPsw> <wlsIdentityType> <wlsIdentityAlias> <wlsIdentityKeyPsw> <wlsTrustData> <wlsTrustPsw> <wlsTrustType> <enablePV>"
+    cat<<EOF
+Usage: 
+./setupWLSDomain.sh \
+    <ocrSSOUser> \
+    <ocrSSOPSW> \
+    <aksClusterRGName> \
+    <aksClusterName> \
+    <wlsImageTag> \
+    <acrName> \
+    <wlsDomainName> \
+    <wlsDomainUID> \
+    <wlsUserName> \
+    <wlsPassword> \
+    <wdtRuntimePassword> \
+    <wlsCPU> \
+    <wlsMemory> \
+    <managedServerPrefix> \
+    <appReplicas> \
+    <appPackageUrls> \
+    <currentResourceGroup> \
+    <scriptURL> \
+    <storageAccountName> \
+    <wlsClusterSize> \
+    <enableCustomSSL> \
+    <wlsIdentityData> \
+    <wlsIdentityPsw> \
+    <wlsIdentityType> \
+    <wlsIdentityAlias> \
+    <wlsIdentityKeyPsw> \
+    <wlsTrustData> \
+    <wlsTrustPsw> \
+    <wlsTrustType> \
+    <enablePV>
+EOF
     if [ $1 -eq 1 ]; then
         exit 1
     fi
@@ -201,6 +234,7 @@ function connect_aks_cluster() {
     az aks get-credentials --resource-group ${aksClusterRGName} --name ${aksClusterName} --overwrite-existing
 }
 
+# remove the operator if it is not running.
 function uninstall_operator() {
     echo "remove operator"
     helm uninstall ${operatorName} -n ${wlsOptNameSpace}
@@ -265,6 +299,7 @@ function install_wls_operator() {
     --set "enableClusterRoleBinding=true" \
     --set "domainNamespaceSelectionStrategy=LabelSelector" \
     --set "domainNamespaceLabelSelector=weblogic-operator\=enabled" \
+    --version ${wlsOptVersion} \
     --wait
 
     validate_status "Installing WLS operator."
@@ -292,51 +327,34 @@ function query_acr_credentials() {
 #    * build a docker image with domain model, applications based on specified WebLogic Standard image
 #    * push the image to ACR
 function build_docker_image() {
-    # Create vm to build docker image
-    vmName="VM-UBUNTU-WLS-AKS-$(date +%s)"
-
-    # MICROSOFT_INTERNAL
-    # Specify tag 'SkipASMAzSecPack' to skip policy 'linuxazuresecuritypackautodeployiaas_1.6'
-    # Specify tag 'SkipNRMS*' to skip Microsoft internal NRMS policy, which cause vm-redeployed issue
-    az vm create \
-    --resource-group ${currentResourceGroup} \
-    --name ${vmName} \
-    --image "Canonical:UbuntuServer:18.04-LTS:latest" \
-    --admin-username azureuser \
-    --generate-ssh-keys \
-    --nsg-rule NONE \
-    --enable-agent true \
-    --vnet-name ${vmName}VNET \
-    --enable-auto-update false \
-    --tags SkipASMAzSecPack=true SkipNRMSCorp=true SkipNRMSDatabricks=true SkipNRMSDB=true SkipNRMSHigh=true SkipNRMSMedium=true SkipNRMSRDPSSH=true SkipNRMSSAW=true SkipNRMSMgmt=true --verbose
-
-    validate_status "Check status of VM machine to build docker image."
-
-    wlsImagePath="${ocrLoginServer}/middleware/weblogic:${wlsImageTag}"
-    az vm extension set --name CustomScript \
-    --extension-instance-name wls-image-script \
-    --resource-group ${currentResourceGroup} \
-    --vm-name ${vmName} \
-    --publisher Microsoft.Azure.Extensions \
-    --version 2.0 \
-    --settings "{ \"fileUris\": [\"${scriptURL}model.properties\",\"${scriptURL}genImageModel.sh\",\"${scriptURL}buildWLSDockerImage.sh\",\"${scriptURL}common.sh\"]}" \
-    --protected-settings "{\"commandToExecute\":\"bash buildWLSDockerImage.sh ${wlsImagePath} ${azureACRServer} ${azureACRUserName} ${azureACRPassword} ${newImageTag} \\\"${appPackageUrls}\\\" ${ocrSSOUser} ${ocrSSOPSW} ${wlsClusterSize} ${enableCustomSSL} \"}"
-
-    # If error fires, keep vm resource and exit.
-    validate_status "Check status of buiding WLS domain image."
-
-    #Validate image from ACR
+    echo "build a new image including the new applications"
+    chmod ugo+x $scriptDir/createVMAndBuildImage.sh
+    bash $scriptDir/createVMAndBuildImage.sh \
+        $currentResourceGroup \
+        $wlsImageTag \
+        $azureACRServer \
+        $azureACRUserName \
+        $azureACRPassword \
+        $newImageTag \
+        "$appPackageUrls" \
+        $ocrSSOUser \
+        $ocrSSOPSW \
+        $wlsClusterSize \
+        $enableCustomSSL \
+        "$scriptURL"
+    
     az acr repository show -n ${acrName} --image aks-wls-images:${newImageTag}
-    validate_status "Check if new image aks-wls-images:${newImageTag} has been pushed to acr."
-
-    cleanup_vm
+    if [ $? -ne 0 ]; then
+        echo "Failed to create image ${azureACRServer}/aks-wls-images:${newImageTag}"
+        exit 1
+    fi
 }
 
 function mount_fileshare() {
     fileShareName="${azFileShareName}"
 
     # Disable https-only
-    az storage account update --name ${storageAccountName} --resource-group ${currentResourceGroup} --https-only false
+    az storage account update --name ${storageAccountName} --resource-group ${storageResourceGroup} --https-only false
 
     mntRoot="/wls"
     mntPath="$mntRoot/$storageAccountName/$fileShareName"
@@ -345,14 +363,14 @@ function mount_fileshare() {
 
     httpEndpoint=$(
         az storage account show \
-        --resource-group $currentResourceGroup \
+        --resource-group $storageResourceGroup \
         --name $storageAccountName \
         --query "primaryEndpoints.file" | tr -d '"'
     )
     smbPath=$(echo $httpEndpoint | cut -c7-$(expr length $httpEndpoint))$fileShareName
 
     export storageAccountKey=$(az storage account keys list \
-        --resource-group $currentResourceGroup \
+        --resource-group $storageResourceGroup \
         --account-name $storageAccountName \
         --query "[0].value" -o tsv)
 
@@ -364,15 +382,15 @@ function unmount_fileshare() {
     echo "unmount fileshare."
     umount ${mntPath}
     # Disable https-only
-    az storage account update --name ${storageAccountName} --resource-group ${currentResourceGroup} --https-only true
+    az storage account update --name ${storageAccountName} --resource-group ${storageResourceGroup} --https-only true
 }
 
 function validate_ssl_keystores() {
     #validate if identity keystore has entry
     ${JAVA_HOME}/bin/keytool -list -v \
-    -keystore ${mntPath}/$wlsIdentityKeyStoreFileName \
-    -storepass $wlsIdentityPsw \
-    -storetype $wlsIdentityType |
+        -keystore ${mntPath}/$wlsIdentityKeyStoreFileName \
+        -storepass $wlsIdentityPsw \
+        -storetype $wlsIdentityType |
         grep 'Entry type:' |
         grep 'PrivateKeyEntry'
 
@@ -380,9 +398,9 @@ function validate_ssl_keystores() {
 
     #validate if trust keystore has entry
     ${JAVA_HOME}/bin/keytool -list -v \
-    -keystore ${mntPath}/${wlsTrustKeyStoreFileName} \
-    -storepass $wlsTrustPsw \
-    -storetype $wlsTrustType |
+        -keystore ${mntPath}/${wlsTrustKeyStoreFileName} \
+        -storepass $wlsTrustPsw \
+        -storetype $wlsTrustType |
         grep 'Entry type:' |
         grep 'trustedCertEntry'
 
@@ -390,16 +408,16 @@ function validate_ssl_keystores() {
 
     #validate if trust keystore has entry
     ${JAVA_HOME}/bin/keytool -list -v \
-    -keystore ${mntPath}/${wlsTrustKeyStoreFileName} \
-    -storepass $wlsTrustPsw \
-    -storetype jks |
+        -keystore ${mntPath}/${wlsTrustKeyStoreFileName} \
+        -storepass $wlsTrustPsw \
+        -storetype jks |
         grep 'Entry type:' |
         grep 'trustedCertEntry'
 
     ${JAVA_HOME}/bin/keytool -list -v \
-    -keystore ${mntPath}/${wlsTrustKeyStoreJKSFileName} \
-    -storepass $wlsTrustPsw \
-    -storetype jks |
+        -keystore ${mntPath}/${wlsTrustKeyStoreJKSFileName} \
+        -storepass $wlsTrustPsw \
+        -storetype jks |
         grep 'Entry type:' |
         grep 'trustedCertEntry'
 
@@ -426,23 +444,23 @@ function output_ssl_keystore() {
     echo "$wlsTrustData" | base64 -d >${mntPath}/$wlsTrustKeyStoreFileName
     # export root cert. Used as gateway backend certificate
     ${JAVA_HOME}/bin/keytool -export \
-    -alias ${wlsIdentityAlias} \
-    -noprompt \
-    -file ${mntPath}/${wlsIdentityRootCertFileName} \
-    -keystore ${mntPath}/$wlsIdentityKeyStoreFileName \
-    -storepass ${wlsIdentityPsw}
+        -alias ${wlsIdentityAlias} \
+        -noprompt \
+        -file ${mntPath}/${wlsIdentityRootCertFileName} \
+        -keystore ${mntPath}/$wlsIdentityKeyStoreFileName \
+        -storepass ${wlsIdentityPsw}
 
     # export jks file
     # -Dweblogic.security.SSL.trustedCAKeyStorePassPhrase for PKCS12 is not working correctly
     # we neet to convert PKCS12 file to JKS file and specify in domain.yaml via -Dweblogic.security.SSL.trustedCAKeyStore
     if [[ "${wlsTrustType,,}" != "jks" ]]; then
         ${JAVA_HOME}/bin/keytool -importkeystore \
-        -srckeystore ${mntPath}/${wlsTrustKeyStoreFileName} \
-        -srcstoretype ${wlsTrustType} \
-        -srcstorepass ${wlsTrustPsw} \
-        -destkeystore ${mntPath}/${wlsTrustKeyStoreJKSFileName} \
-        -deststoretype jks \
-        -deststorepass ${wlsTrustPsw}
+            -srckeystore ${mntPath}/${wlsTrustKeyStoreFileName} \
+            -srcstoretype ${wlsTrustType} \
+            -srcstorepass ${wlsTrustPsw} \
+            -destkeystore ${mntPath}/${wlsTrustKeyStoreJKSFileName} \
+            -deststoretype jks \
+            -deststorepass ${wlsTrustPsw}
 
         validate_status "Export trust JKS file."
     else
@@ -457,16 +475,29 @@ function output_ssl_keystore() {
 function create_pv() {
     echo "check if pv/pvc have been created."
     pvcName=${wlsDomainUID}-pvc-azurefile
+    pvName=${wlsDomainUID}-pv-azurefile
     ret=$(kubectl -n ${wlsDomainNS} get pvc ${pvcName} | grep "Bound")
 
     if [ -n "$ret" ]; then
         echo "pvc is bound to namespace ${wlsDomainNS}."
+        # this is a workaround for update domain using marketplace offer.
+        # the offer will create a new storage account in a new resource group.
+        # remove the new storage account.
+        currentStorageAccount=$(kubectl get pv ${pvName} -o json | jq '. | .metadata.labels.storageAccount' | tr -d "\"")
+        if [[ "${currentStorageAccount}" != "${storageAccountName}" ]]; then
+            echo "the cluster is bound to pv on storage account ${currentStorageAccount}"
+            az storage account delete -n ${storageAccountName} -g $currentResourceGroup -y
+            storageAccountName=${currentStorageAccount} # update storage account name
+            echo "query storage account resource group"
+            storageResourceGroup=$(az storage account show --name ${storageAccountName} | jq '.resourceGroup' | tr -d "\"")
+            echo "resource group that contains storage account ${storageAccountName} is ${storageResourceGroup}"
+        fi
+
         return
     fi
 
-    echo "${pvcName} does not exists."
     echo "create pv/pvc."
-    export storageAccountKey=$(az storage account keys list --resource-group $currentResourceGroup --account-name $storageAccountName --query "[0].value" -o tsv)
+    export storageAccountKey=$(az storage account keys list --resource-group $storageResourceGroup --account-name $storageAccountName --query "[0].value" -o tsv)
     export azureSecretName="azure-secret"
     kubectl -n ${wlsDomainNS} create secret generic ${azureSecretName} \
     --from-literal=azurestorageaccountname=${storageAccountName} \
@@ -475,9 +506,9 @@ function create_pv() {
     # generate pv configurations
     customPVYaml=${scriptDir}/pv.yaml
     cp ${scriptDir}/pv.yaml.template ${customPVYaml}
-    pvName=${wlsDomainUID}-pv-azurefile
     sed -i -e "s:@NAMESPACE@:${wlsDomainNS}:g" ${customPVYaml}
-    sed -i -e "s:@PV_NME@:${pvName}:g" ${customPVYaml}
+    sed -i -e "s:@PV_NAME@:${pvName}:g" ${customPVYaml}
+    sed -i -e "s:@PVC_NAME@:${pvcName}:g" ${customPVYaml}
     sed -i -e "s:@STORAGE_ACCOUNT@:${storageAccountName}:g" ${customPVYaml}
 
     # generate pv configurations
@@ -497,14 +528,31 @@ function create_pv() {
     fi
 }
 
-# Deploy WebLogic domain and cluster
-#  * Create namespace for domain
-#  * Create secret for weblogic
-#  * Create secret for Azure file
-#  * Create secret for ACR
-#  * Deploy WebLogic domain using image in ACR
-#  * Wait for the domain completed
-function setup_wls_domain() {
+function wait_for_pod_completed() {
+    echo "Waiting for $((appReplicas+1)) pods are running."
+
+    utility_wait_for_pod_completed \
+        ${appReplicas} \
+        "${wlsDomainNS}" \
+        ${checkPodStatusMaxAttemps} \
+        ${checkPodStatusInterval}
+}
+
+function wait_for_image_update_completed() {
+    # Make sure all of the pods are updated with new image.
+    # Assumption: we have only one cluster currently.
+    acrImagePath=${azureACRServer}/aks-wls-images:${newImageTag}
+    echo "Waiting for $((appReplicas+1)) new pods created with image ${acrImagePath}"
+    
+    utility_wait_for_image_update_completed \
+        "${acrImagePath}" \
+        ${appReplicas} \
+        "${wlsDomainNS}" \
+        ${checkPodStatusMaxAttemps} \
+        ${checkPodStatusInterval}
+}
+
+function create_domain_namespace() {
     echo "check if namespace ${wlsDomainNS} exists?"
     ret=$(kubectl get namespace | grep "${wlsDomainNS}")
 
@@ -539,13 +587,9 @@ function setup_wls_domain() {
     -n ${wlsDomainNS}
 
     kubectl -n ${wlsDomainNS} label secret ${kubectlSecretForACR} weblogic.domainUID=${wlsDomainUID}
+}
 
-    echo "constTrue": "${constTrue}"
-    if [[ "${enablePV,,}" == "${constTrue}" ]]; then
-        echo "PV/PVC is enabled. "
-        create_pv
-    fi
-
+function parsing_ssl_certs_and_create_ssl_secret() {
     export javaOptions=""
     if [[ "${enableCustomSSL,,}" == "${constTrue}" ]]; then
         # use default Java, if no, install open jdk 11.
@@ -561,7 +605,7 @@ function setup_wls_domain() {
         validate_ssl_keystores
         unmount_fileshare
 
-        echo "check if exists."
+        echo "check if ${kubectlWLSSSLCredentials} exists."
         ret=$(kubectl get secret -n ${wlsDomainNS} | grep "${kubectlWLSSSLCredentials}")
         if [ -n "${ret}" ]; then
             echo "delete secret  ${kubectlWLSSSLCredentials}"
@@ -569,21 +613,52 @@ function setup_wls_domain() {
         fi
         echo "create secret  ${kubectlWLSSSLCredentials}"
         kubectl -n ${wlsDomainNS} create secret generic ${kubectlWLSSSLCredentials} \
-        --from-literal=sslidentitykeyalias=${wlsIdentityAlias} \
-        --from-literal=sslidentitykeypassword=${wlsIdentityKeyPsw} \
-        --from-literal=sslidentitystorepath=${sharedPath}/$wlsIdentityKeyStoreFileName \
-        --from-literal=sslidentitystorepassword=${wlsIdentityPsw} \
-        --from-literal=sslidentitystoretype=${wlsIdentityType} \
-        --from-literal=ssltruststorepath=${sharedPath}/${wlsTrustKeyStoreFileName} \
-        --from-literal=ssltruststoretype=${wlsTrustType} \
-        --from-literal=ssltruststorepassword=${wlsTrustPsw}
+            --from-literal=sslidentitykeyalias=${wlsIdentityAlias} \
+            --from-literal=sslidentitykeypassword=${wlsIdentityKeyPsw} \
+            --from-literal=sslidentitystorepath=${sharedPath}/$wlsIdentityKeyStoreFileName \
+            --from-literal=sslidentitystorepassword=${wlsIdentityPsw} \
+            --from-literal=sslidentitystoretype=${wlsIdentityType} \
+            --from-literal=ssltruststorepath=${sharedPath}/${wlsTrustKeyStoreFileName} \
+            --from-literal=ssltruststoretype=${wlsTrustType} \
+            --from-literal=ssltruststorepassword=${wlsTrustPsw}
 
         kubectl -n ${wlsDomainNS} label secret ${kubectlWLSSSLCredentials} weblogic.domainUID=${wlsDomainUID}
         javaOptions="-Dweblogic.security.SSL.ignoreHostnameVerification=true -Dweblogic.security.SSL.trustedCAKeyStore=${sharedPath}/${wlsTrustKeyStoreJKSFileName}"
     fi
+}
+
+# Deploy WebLogic domain and cluster
+#  * Create namespace for domain
+#  * Create secret for weblogic
+#  * Create secret for Azure file
+#  * Create secret for ACR
+#  * Deploy WebLogic domain using image in ACR
+#  * Wait for the domain completed
+function setup_wls_domain() {
+    # create namespace
+    create_domain_namespace
+
+    echo "constTrue": "${constTrue}"
+    if [[ "${enablePV,,}" == "${constTrue}" ]]; then
+        echo "start to create pv/pvc. "
+        create_pv
+    fi
+
+    parsing_ssl_certs_and_create_ssl_secret
+
+    # show resources
+    echo "print weblogic operator status"
+    kubectl -n ${wlsOptNameSpace} get pod -o wide
+    echo "print secrets that is ready to use"
+    kubectl -n ${wlsDomainNS} get secret -o wide
+    echo "print current configmap"
+    kubectl -n ${wlsDomainNS} get configmap -o wide
+    echo "print pvc info"
+    kubectl -n ${wlsDomainNS} get pvc -o wide
 
     customDomainYaml=${scriptDir}/custom-domain.yaml
     if [[ "${updateNamepace}" == "${constTrue}" ]]; then
+        echo "start to update domain  ${wlsDomainUID}"
         chmod ugo+x $scriptDir/updateDomainConfig.sh
         bash $scriptDir/updateDomainConfig.sh \
         ${customDomainYaml} \
@@ -598,6 +673,7 @@ function setup_wls_domain() {
         ${enablePV} \
         "${javaOptions}"
     else
+        echo "start to create domain  ${wlsDomainUID}"
         # generate domain yaml
         chmod ugo+x $scriptDir/genDomainConfig.sh
         bash $scriptDir/genDomainConfig.sh \
@@ -616,107 +692,9 @@ function setup_wls_domain() {
 
     kubectl apply -f ${customDomainYaml}
 
-    wait_for_domain_completed
-}
+    wait_for_image_update_completed
 
-function wait_for_domain_completed() {
-    attempts=0
-    svcState="running"
-    while [ ! "$svcState" == "completed" ] && [ $attempts -lt 10 ]; do
-        svcState="completed"
-        attempts=$((attempts + 1))
-        echo Waiting for job completed...${attempts}
-        sleep ${checkPodStatusInterval}
-
-        # If the job is completed, there should have the following services created,
-        #    ${domainUID}-${adminServerName}, e.g. domain1-admin-server
-        adminServiceCount=$(kubectl -n ${wlsDomainNS} get svc | grep -c "${wlsDomainUID}-${adminServerName}")
-        if [ ${adminServiceCount} -lt 1 ]; then svcState="running"; fi
-
-        # If the job is completed, there should have the following services created, .assuming initialManagedServerReplicas=2
-        #    ${domainUID}-${managedServerNameBase}1, e.g. domain1-managed-server1
-        #    ${domainUID}-${managedServerNameBase}2, e.g. domain1-managed-server2
-        managedServiceCount=$(kubectl -n ${wlsDomainNS} get svc | grep -c "${wlsDomainUID}-${managedServerPrefix}")
-        if [ ${managedServiceCount} -lt ${appReplicas} ]; then svcState="running"; fi
-
-        # If the job is completed, there should have no service in pending status.
-        pendingCount=$(kubectl -n ${wlsDomainNS} get pod | grep -c "pending")
-        if [ ${pendingCount} -ne 0 ]; then svcState="running"; fi
-
-        # If the job is completed, there should have the following pods running
-        #    ${domainUID}-${adminServerName}, e.g. domain1-admin-server
-        #    ${domainUID}-${managedServerNameBase}1, e.g. domain1-managed-server1
-        #    to
-        #    ${domainUID}-${managedServerNameBase}n, e.g. domain1-managed-servern, n = initialManagedServerReplicas
-        runningPodCount=$(kubectl -n ${wlsDomainNS} get pods | grep "${wlsDomainUID}" | grep -c "Running")
-        if [[ $runningPodCount -le ${appReplicas} ]]; then svcState="running"; fi
-    done
-
-    # If all the services are completed, print service details
-    # Otherwise, ask the user to refer to document for troubleshooting
-    if [ "$svcState" == "completed" ]; then
-        kubectl -n ${wlsDomainNS} get pods
-        kubectl -n ${wlsDomainNS} get svc
-    else
-        echo WARNING: WebLogic domain is not ready. It takes too long to create domain, please refer to http://oracle.github.io/weblogic-kubernetes-operator/samples/simple/azure-kubernetes-service/#troubleshooting
-        exitCode=1
-    fi
-}
-
-function cleanup_vm() {
-    #Remove VM resources
-    az extension add --name resource-graph
-    # query vm id
-    vmId=$(az graph query -q "Resources \
-| where type =~ 'microsoft.compute/virtualmachines' \
-| where name=~ '${vmName}' \
-| where resourceGroup  =~ '${currentResourceGroup}' \
-| project vmid = id" -o tsv)
-
-    # query nic id
-    nicId=$(az graph query -q "Resources \
-| where type =~ 'microsoft.compute/virtualmachines' \
-| where name=~ '${vmName}' \
-| where resourceGroup  =~ '${currentResourceGroup}' \
-| extend nics=array_length(properties.networkProfile.networkInterfaces) \
-| mv-expand nic=properties.networkProfile.networkInterfaces \
-| where nics == 1 or nic.properties.primary =~ 'true' or isempty(nic) \
-| project nicId = tostring(nic.id)" -o tsv)
-
-    # query ip id
-    ipId=$(az graph query -q "Resources \
-| where type =~ 'microsoft.network/networkinterfaces' \
-| where id=~ '${nicId}' \
-| extend ipConfigsCount=array_length(properties.ipConfigurations) \
-| mv-expand ipconfig=properties.ipConfigurations \
-| where ipConfigsCount == 1 or ipconfig.properties.primary =~ 'true' \
-| project  publicIpId = tostring(ipconfig.properties.publicIPAddress.id)" -o tsv)
-
-    # query os disk id
-    osDiskId=$(az graph query -q "Resources \
-| where type =~ 'microsoft.compute/virtualmachines' \
-| where name=~ '${vmName}' \
-| where resourceGroup  =~ '${currentResourceGroup}' \
-| project osDiskId = tostring(properties.storageProfile.osDisk.managedDisk.id)" -o tsv)
-
-    # query vnet id
-    vnetId=$(az graph query -q "Resources \
-| where type =~ 'Microsoft.Network/virtualNetworks' \
-| where name=~ '${vmName}VNET' \
-| where resourceGroup  =~ '${currentResourceGroup}' \
-| project vNetId = id" -o tsv)
-
-    # query nsg id
-    nsgId=$(az graph query -q "Resources \
-| where type =~ 'Microsoft.Network/networkSecurityGroups' \
-| where name=~ '${vmName}NSG' \
-| where resourceGroup  =~ '${currentResourceGroup}' \
-| project nsgId = id" -o tsv)
-
-    # Delete VM NIC IP VNET NSG resoruces
-    vmResourceIdS=$(echo ${vmId} ${nicId} ${ipId} ${osDiskId} ${vnetId} ${nsgId})
-    echo ${vmResourceIdS}
-    az resource delete --verbose --ids ${vmResourceIdS}
+    wait_for_pod_completed
 }
 
 # Main script
@@ -767,12 +745,14 @@ export kubectlWDTEncryptionSecret="${wlsDomainUID}-runtime-encryption-secret"
 export newImageTag=$(date +%s)
 export operatorName="weblogic-operator"
 export storageFileShareName="weblogic"
+export storageResourceGroup=${currentResourceGroup}
 export sharedPath="/shared"
 export wlsDomainNS="${wlsDomainUID}-ns"
 export wlsOptHelmChart="https://oracle.github.io/weblogic-kubernetes-operator/charts"
 export wlsOptNameSpace="weblogic-operator-ns"
 export wlsOptRelease="weblogic-operator"
 export wlsOptSA="weblogic-operator-sa"
+export wlsOptVersion="3.2.5"
 export wlsIdentityKeyStoreFileName="security/identity.keystore"
 export wlsTrustKeyStoreFileName="security/trust.keystore"
 export wlsTrustKeyStoreJKSFileName="security/trust.jks"

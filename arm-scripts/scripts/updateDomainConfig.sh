@@ -152,19 +152,17 @@ fi
 
 index=0
 while [ $index -lt ${envLength} ]; do
-    envItemName=$(cat ${currentConfig} | jq ". | .spec.serverPod.env[$index] | .name")
+    envItemName=$(cat ${currentConfig} | jq ". | .spec.serverPod.env[$index] | .name" | tr -d "\"")
     envItemValue=$(cat ${currentConfig} | jq ". | .spec.serverPod.env[$index] | .value")
-    if [[ ${envItemName} == "JAVA_OPTIONS" ]];then
-      cat <<EOF >>$filePath
-    - name: ${envItemName}
-      value: "-Dweblogic.StdoutDebugEnabled=false ${javaOptions}"
-EOF
-    else
-      cat <<EOF >>$filePath
-    - name: ${envItemName}
+
+    if [[ "${envItemName}" == "JAVA_OPTIONS" ]];then
+      envItemValue="\"-Dweblogic.StdoutDebugEnabled=false ${javaOptions}\""
+    fi
+
+    cat <<EOF >>$filePath
+    - name: "${envItemName}"
       value: ${envItemValue}
 EOF
-    fi
     index=$((index+1))
 done
 

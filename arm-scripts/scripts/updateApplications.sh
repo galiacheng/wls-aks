@@ -36,6 +36,7 @@ function get_app_sas_url() {
     args=("$@")
     appNumber=$#
     index=0
+    appSASUrlString=""
     while [ $index -lt $appNumber ]; do
         appName=${args[${index}]}
         echo "app package file name: ${appName}"
@@ -43,13 +44,23 @@ function get_app_sas_url() {
             appSaSUrl=$(az storage blob url --container-name ${appContainerName} \
                 --name ${appName} \
                 --account-name ${appStorageAccountName} \
-                --sas-token ${sasToken})
+                --sas-token ${sasToken} -o tsv)
             echo ${appSaSUrl}
-            appPackageUrls=$(echo "${appPackageUrls}" | jq '. |= ["'${appSaSUrl}'"] + .') # append url
+            appSASUrlString="${appSASUrlString},${appSaSUrl}"
         fi
 
         index=$((index+1))
     done
+
+    # append urls
+    if [ "${appPackageUrls}" == "[]" ]; then
+        appPackageUrls="[${appSASUrlString:1:${#appSASUrlString}-1}]" # remove the beginning comma
+    else
+        appPackageUrls=$(echo "${appPackageUrls:1:${#appPackageUrls}-2}") # remove []
+        appPackageUrls="[${appPackageUrls}${appSASUrlString}]"
+    fi
+
+    echo $appPackageUrls
 }
 
 function query_app_urls() {
@@ -63,19 +74,21 @@ function query_app_urls() {
 
     appList=$(az storage blob list --container-name ${appContainerName} \
         --account-name ${appStorageAccountName} \
-        | jq '.[] | .name')
+        | jq '.[] | .name' \
+        | tr -d "\"")
 
     if [ $? == 1 ]; then
         echo "Failed to query application from ${appContainerName}"
         return
     fi
 
-    sasTokenEnd=`date -u -d "${sasTokenValidTime} minutes" '+%Y-%m-%dT%H:%MZ'`
+    expiryData=$(( `date +%s`+${sasTokenValidTime}))
+    sasTokenEnd=`date -d@"$expiryData" -u '+%Y-%m-%dT%H:%MZ'`
     sasToken=$(az storage account generate-sas \
         --permissions r \
         --account-name ${appStorageAccountName} \
         --services b \
-        --resource-types c \
+        --resource-types sco \
         --expiry $sasTokenEnd -o tsv)
     
     get_app_sas_url ${appList}
@@ -97,6 +110,12 @@ function build_docker_image() {
         $wlsClusterSize \
         $enableCustomSSL \
         "$scriptURL"
+
+    az acr repository show -n ${acrName} --image aks-wls-images:${newImageTag}
+    if [ $? -ne 0 ]; then
+        echo "Failed to create image ${azureACRServer}/aks-wls-images:${newImageTag}"
+        exit 1
+    fi
 }
 
 function apply_new_image() {
@@ -114,30 +133,11 @@ function wait_for_pod_completed() {
     replicas=$(kubectl -n ${wlsDomainNS} get domain ${wlsDomainUID} -o json \
         | jq '. | .spec.clusters[] | .replicas')
 
-    echo "Waiting for $((replicas+1)) pods are running."
-
-    readyPodNum=0
-    attempt=0
-    while [[ ${readyPodNum} -le  ${replicas} && $attempt -le ${checkPodStatusMaxAttemps} ]];do        
-        ret=$(kubectl get pods -n ${wlsDomainNS} -o json \
-            | jq '.items[] | .status.phase' \
-            | grep "Running")
-        if [ -z "${ret}" ];then
-            readyPodNum=0
-        else
-            readyPodNum=$(kubectl get pods -n ${wlsDomainNS} -o json \
-                | jq '.items[] | .status.phase' \
-                | grep -c "Running")
-        fi
-        echo "Number of new running pod: ${readyPodNum}"
-        attempt=$((attempt+1))
-        sleep ${checkPodStatusInterval}
-    done
-
-    if [ ${attempt} -gt ${checkPodStatusMaxAttemps} ];then
-        echo "It takes too long to wait for all the pods are running, please refer to http://oracle.github.io/weblogic-kubernetes-operator/samples/simple/azure-kubernetes-service/#troubleshooting"
-        exit 1
-    fi
+    utility_wait_for_pod_completed \
+        ${replicas} \
+        "${wlsDomainNS}" \
+        ${checkPodStatusMaxAttemps} \
+        ${checkPodStatusInterval}
 }
 
 function wait_for_image_update_completed() {
@@ -145,33 +145,13 @@ function wait_for_image_update_completed() {
     # Assumption: we have only one cluster currently.
     replicas=$(kubectl -n ${wlsDomainNS} get domain ${wlsDomainUID} -o json \
         | jq '. | .spec.clusters[] | .replicas')
-    echo "Waiting for $((replicas+1)) new pods created with image ${acrImagePath}"
     
-    updatedPodNum=0
-    attempt=0
-    while [ ${updatedPodNum} -le  ${replicas} ] && [ $attempt -le ${checkPodStatusMaxAttemps} ];do
-        echo "attempts ${attempt}"
-        ret=$(kubectl get pods -n ${wlsDomainNS} -o json \
-            | jq '.items[] | .spec | .containers[] | select(.name == "weblogic-server") | .image' \
-            | grep "${acrImagePath}")
-    
-        if [ -z "${ret}" ];then
-            updatedPodNum=0
-        else
-            updatedPodNum=$(kubectl get pods -n ${wlsDomainNS} -o json \
-                | jq '.items[] | .spec | .containers[] | select(.name == "weblogic-server") | .image' \
-                | grep -c "${acrImagePath}")
-        fi
-        echo "Number of new pod: ${updatedPodNum}"
-
-        attempt=$((attempt+1))
-        sleep ${checkPodStatusInterval}
-    done
-
-    if [ ${attempt} -gt ${checkPodStatusMaxAttemps} ];then
-        echo "Failed to update with image ${acrImagePath} to all weblogic server pods. "
-        exit 1
-    fi
+    utility_wait_for_image_update_completed \
+        "${acrImagePath}" \
+        ${replicas} \
+        "${wlsDomainNS}" \
+        ${checkPodStatusMaxAttemps} \
+        ${checkPodStatusInterval}
 }
 
 #Output value to deployment scripts
@@ -207,7 +187,8 @@ export appStorageAccountName=${12}
 export appContainerName=${13}
 
 export newImageTag=$(date +%s)
-export sasTokenValidTime=60 #min
+# seconds
+export sasTokenValidTime=3600
 export sslIdentityEnvName="SSL_IDENTITY_PRIVATE_KEY_ALIAS"
 export wlsClusterName="cluster-1"
 export wlsDomainNS="${wlsDomainUID}-ns"
