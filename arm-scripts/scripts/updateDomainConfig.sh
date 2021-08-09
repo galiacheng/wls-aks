@@ -154,16 +154,28 @@ index=0
 while [ $index -lt ${envLength} ]; do
     envItemName=$(cat ${currentConfig} | jq ". | .spec.serverPod.env[$index] | .name" | tr -d "\"")
     envItemValue=$(cat ${currentConfig} | jq ". | .spec.serverPod.env[$index] | .value")
+    index=$((index+1))
 
     if [[ "${envItemName}" == "JAVA_OPTIONS" ]];then
       envItemValue="\"-Dweblogic.StdoutDebugEnabled=false ${javaOptions}\""
+    fi
+
+    # do not copy value from SSL_ env
+    if [[ "${envItemName}" == "SSL_IDENTITY_PRIVATE_KEY_ALIAS" ]] \
+      || [[ "${envItemName}" == "SSL_IDENTITY_PRIVATE_KEY_PSW" ]] \
+      || [[ "${envItemName}" == "SSL_IDENTITY_PRIVATE_KEYSTORE_PATH" ]] \
+      || [[ "${envItemName}" == "SSL_IDENTITY_PRIVATE_KEYSTORE_TYPE" ]] \
+      || [[ "${envItemName}" == "SSL_IDENTITY_PRIVATE_KEYSTORE_PSW" ]] \
+      || [[ "${envItemName}" == "SSL_TRUST_KEYSTORE_PATH" ]] \
+      || [[ "${envItemName}" == "SSL_TRUST_KEYSTORE_TYPE" ]] \
+      || [[ "${envItemName}" == "SSL_TRUST_KEYSTORE_PSW" ]];then
+      continue
     fi
 
     cat <<EOF >>$filePath
     - name: "${envItemName}"
       value: ${envItemValue}
 EOF
-    index=$((index+1))
 done
 
 if [[ "${enablePV,,}" == "true" ]]; then
